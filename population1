@@ -1,0 +1,189 @@
+# population simulation
+
+# in a population of 100 individuals, a set of genes/cultural behavior is passed on
+# from one generation to the next.  we'll call this set "survival skill level" or SSL.  
+# SSL is rated on a scale of 10 (but it can never be 0 or 10, and is always an integer). 
+# in each generation, only 5% of the population is subjected to the pressures that 
+# bring the SSL into effect: we assume the other 95% always survives and reproduces.  
+# individuals who are (randomly) in this 5% have a rate of survival/reproduction equal 
+# to the square of their SSL divided by 100.  each surviving individual in the population
+# (part of the 5% or 95%) randomly picks a mate from the rest and the couple has two 
+# offspring.  if the total surviving population goes down to 80 individuals, each mating
+# couple has three offspring.  if there is an odd number of individuals, one does not mate.  
+# SSL is pased on in the following way: if the mating individuals have the same SSL, each
+# offspring has a 50% chance of having the same SSL, 25% chance of having 1 higher SSL,
+# 25% of 1 lower (but never less than 1 or more than 9).  if the mating individuals have
+# a different SSL, there is a 20% chance (each) that the offspring will have: the same SSL
+# as each parent; 1 higher than the lower SSL; or 1 lower than the higher SSL.  there is 
+# a 10% chance the offspring will have 1 higher than the higher SSL and 1 lower than the
+# lower SSL.  SSL that would be above 9 stays at nine, and SSL that would be below 1 stays
+# at 1.  
+
+# observations of results: it seems that while the population definitely drifts toward a
+# SSL, the system reaches 'rough' equilibrium once the mean SSL is something like 5 or 6.  
+# the population definitely loses the SSL=1 crowd, though with the algorithm it makes sense
+# that SSL=1 and SSL=2 individuals will always pop up, only to be reduced again in a few
+# generations before there are more than a few.  the high-SSL end of the population does
+# grow, but does not seem to dominate.  This is probably because SSL=8 and SSL=9 individuals
+# keep getting averaged down while their SSL can never grow -- over more than one turn, they
+# are more likely to end up with a lower SSL than when they started (at 9) compared to 
+# individuals with a lower SSL.  
+
+# obviously this algorithm determining survival and reproduction are totally fabricated,
+# intuitive and non-scientific.  however, natural selection probably does follow a
+# somewhat similar design, and observing such a model is quite interesting, even when
+# it is so crude and subjective.  
+
+
+from __future__ import division
+from random import random
+
+# we will start with these figures: 40 with SSL=1, 30 with SSL=3, 20 with SSL=5, 10 with
+# SSL=7.  out of a total population of 80-120, 5 will be selected for survival.
+
+# pop[gen][indv SSL]:
+
+pop = [[]]
+for i in range(40):
+  pop[0].append(1)
+for i in range(40,70):
+	pop[0].append(3)
+for i in range(70,90):
+	pop[0].append(5)
+for i in range(90,100):
+	pop[0].append(7)
+
+def display_gen(gen):
+	global pop_count
+	global pop_perc
+	print ""
+	print "generation:", gen
+	pop_count = {}
+	for SSL in range(1,10):
+		pop_count[SSL] = pop[gen].count(SSL)
+	pop_perc = {}
+	for i in range(1,10):
+		if i in pop_count:
+			pop_perc[i] = round( 100 * pop_count[i] / len(pop[gen]) , 2 )
+		else:
+			pop_perc[i] = 0
+	
+	line1 = " SSL :      __1__  __2__  __3__  __4__  __5__  __6__  __7__  __8__  __9__"
+	line2 = " count :    "+ cs(1)+ cs(2)+ cs(3)+ cs(4)+ cs(5)+ cs(6)+ cs(7)+ cs(8)+ cs(9)
+	line3 = " percent:   "+ ps(1)+ ps(2)+ ps(3)+ ps(4)+ ps(5)+ ps(6)+ ps(7)+ ps(8)+ ps(9)
+
+	print line1
+	print ""
+	print line2
+	print ""
+	print line3
+
+def cs(n):
+	output = str(pop_count[n])
+	output = " " * (3 - len(output)) + output + "    "
+	return output
+
+def ps(n):
+	output = str(pop_perc[n])
+	if output[1] == ".": output = " " + output
+	if output[-2] == ".": output = output + "   "
+	else: output = output + "  "
+	return output
+
+def survival(gen):
+	survivors = pop[gen]
+	pop_total = len(pop[gen])
+	survival_list = []
+	survival_fail = []
+	for i in range(5):
+		j = int(random()*pop_total)
+		while j in survival_list:
+			j = int(random()*pop_total)
+		survival_list.append(j)
+		r = random()
+		if r > pop[gen][j]**7/5000000:
+			survival_fail.append(j)
+	survival_fail = sorted(survival_fail)[::-1]
+	for j in survival_fail:
+		survivors.remove(survivors[j])
+	return survivors
+
+def reproduction(survivors):
+	new_gen = []
+	if len(survivors) < 80:
+		print ""
+		print "population boom coming!"
+		boom = True
+	else: boom = False
+	if len(survivors) % 2 == 1:
+		unlucky_one = int(random()*len(survivors))
+		survivors.remove(survivors[unlucky_one])
+	num_of_couples = len(survivors) // 2
+	for c in range(num_of_couples):
+		i = int(random()*len(survivors))
+		i_SSL = survivors[i]
+		survivors.remove(survivors[i])
+		j = int(random()*len(survivors))
+		j_SSL = survivors[j]
+		survivors.remove(survivors[j])
+		offspring = breed(i_SSL,j_SSL)
+		new_gen.append(offspring)
+#		print i_SSL, "and", j_SSL, "give birth to", offspring, "..."
+		offspring = breed(i_SSL,j_SSL)
+		new_gen.append(offspring)
+#		print "    ... and to", offspring
+		if boom:
+			offspring = breed(i_SSL,j_SSL)
+			new_gen.append(offspring)
+	return new_gen
+		
+def breed(i_SSL,j_SSL):
+	b = random()
+	if i_SSL == j_SSL:
+		if b < .25: 
+			offspring = i_SSL - 1
+		elif b < .75: 
+			offspring = i_SSL
+		else:
+			offspring = i_SSL + 1
+	else:
+		if b < .1:
+			offspring = min(i_SSL,j_SSL) - 1
+		elif b < .3:
+			offspring = min(i_SSL,j_SSL)
+		elif b < .5:
+			offspring = min(i_SSL,j_SSL) + 1
+		elif b < .7:
+			offspring = max(i_SSL,j_SSL) - 1
+		elif b < .9:
+			offspring = max(i_SSL,j_SSL)
+		else:
+			offspring = max(i_SSL,j_SSL) + 1
+	if offspring == 0: offspring = 1
+	elif offspring == 10: offspring = 9
+	return offspring
+
+def one_gen(gen):
+	display_gen(gen)
+	survivors = survival(gen)
+	pop.append(reproduction(survivors))
+
+def gen_loop():
+	space()
+	gen = 0
+	go = "yes"
+	while go != "stop":
+		one_gen(gen)
+		space()
+		gen += 1
+		go = raw_input('type "stop" to end program   +   ')
+		print ""
+
+def space():
+	print """
+
+
+	"""
+
+
+gen_loop()
