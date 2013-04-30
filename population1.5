@@ -1,0 +1,155 @@
+# Aa, Bb
+
+# Two recessive genes, independent from one another, give individuals in a population 
+# a slightly greater chance of survival.  During its pre-reproduction lifetime, an 
+# individual has an 80% chance of experiencing "Stress A" and a 20% chance of
+# experiencing "Stress B".  If an individual experiences Stress A, he/she has an 80%
+# chance of survival if he/she has AA or Aa, and 82% chance of survival if he/she has aa.  
+# If an individual experiences Stress B, he/she has an 20% chance of survival if he/she has 
+# BB or Bb, and 82% chance of survival if he/she has bb.  
+
+# If an individual survives, he/she will mate with another individual (at random) and 
+# the couple will produce 3 offspring.  (The population will slowly grow.)  
+
+# Beginning conditions: 1000 individuals in the population, 960 of which are AA/BB,
+# 20 of which are Aa/BB, 20 of which are AA/Bb.  We will see if the recessive genes
+# will eventually become more widespread (or the norm), and how long this might take.
+
+# edit: if the population surpasses 1000 after stress, further stress is experienced.
+
+# Brief observation: it seems if we just start with 20/20, the population will eventually
+# revert to 100% AABB.  If we start with 200/200, it is possible for the recessive alleles
+# to take hold, it seems (from a few trials) that 'aa' is more likely to propogate than
+# 'bb'.  
+
+from __future__ import division
+from random import random
+
+
+
+def reset_population(initial_pop, prop_AaBb, propAABb):
+  global p
+	p = []
+	for i in range(int(initial_pop*(1-prop_AaBb-propAABb))):
+		p.append("AABB")
+	for i in range(int(initial_pop*prop_AaBB)):
+		p.append("AaBB")
+	for i in range(int(initial_pop*prop_AABb)):
+		p.append("AABb")
+
+def pop_stress():
+	kill_list = []
+	for i in p:
+		r = random()
+		rA = random()
+		if r > .2 and ( (i[0] == "A" and rA > .8) or (i[0] == "a" and rA > .82) ) :
+			kill_list.append(i)
+			killed = True
+		else: killed = False
+		if killed == False:
+			r = random()
+			if r > .8:
+				rB = random()
+				if (i[0] == "A" and rB > .2) or (i[0] == "a" and rB > .21) :
+					kill_list.append(i)
+	for i in kill_list:
+		p.remove(i)
+		
+def reproduction():
+	global p
+	offspring = []
+	if len(p)%2 == 1:
+		unlucky = int(random()*len(p))
+		p.remove(p[unlucky])
+	while p != []:
+		i = p[int(random()*len(p))]
+		p.remove(i)
+		j = p[int(random()*len(p))]
+		p.remove(j)
+		for o in range(3):
+			r = random()
+			if r > .5:
+				ria = i[0]
+			else:
+				ria = i[1]
+			r = random()
+			if r > .5:
+				rja = j[0]
+			else:
+				rja = j[1]
+			r = random()
+			if r > .5:
+				rib = i[2]
+			else:
+				rib = i[3]
+			r = random()
+			if r > .5:
+				rjb = j[2]
+			else:
+				rjb = j[3]
+			if ria == rja:
+				off = ria + rja
+			else:
+				off = "Aa"
+			if rib == rjb:
+				off += rib + rjb
+			else:
+				off += "Bb"
+			offspring.append(off)
+	p = offspring
+
+def display_percentages():
+	print """
+            AA           Aa           aa
+            
+ BB       {0}{1}        {2}{3}        {4}{5}
+            
+ Bb       {6}{7}        {8}{9}        {10}{11}
+            
+ Bb       {12}{13}        {14}{15}        {16}{17}
+""".format( \
+	"  " if round( 100 * p.count("AABB") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("AABB") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("AaBB") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("AaBB") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("aaBB") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("aaBB") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("AABb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("AABb") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("AaBb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("AaBb") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("aaBb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("aaBb") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("AAbb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("AAbb") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("Aabb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("Aabb") / len(p) , 1 ), \
+	"  " if round( 100 * p.count("aabb") / len(p) , 1 ) <= 10 else " ", \
+	round( 100 * p.count("aabb") / len(p) , 1 ), )
+
+
+
+initial_pop = 1000
+prop_AaBB = .02
+prop_AABb = .02
+reset_population(initial_pop, prop_AaBB, prop_AABb)
+generation = 0
+cycle = 1
+while cycle != "stop":
+	if cycle == "reset":
+		cycle = 1
+		generation = 0
+		reset_population(initial_pop, prop_AaBB, prop_AABb)
+	print "Generation:", generation
+	display_percentages()
+	if generation % int(cycle) == 0 :
+		cycle = raw_input(' - + - + -            ')
+		if cycle != "stop"  and cycle != "reset" and cycle.isdigit() == False:
+			cycle = 1
+		print ""
+	pop_stress()
+	while len(p) > initial_pop:
+		pop_stress()
+	reproduction()
+	generation += 1
+
