@@ -1,0 +1,88 @@
+from __future__ import division
+from random import random
+import math
+
+
+# paint the wall of terminal
+# 45 chars wide...
+
+
+# basic random char generator:
+
+def brcg(x,y):
+
+  r=random()
+
+	w = .001 * (80-x) + .002 * (45-y)
+	v = max(0, (.6 - ((x-39)**2 + (2*y-45)**2) * .001))
+	u = .001 * x + .002 * y
+
+#	Play with other functions: these have x/y inputs for the range
+#	of (0,80) for x and (0,44) for y, and (ideally) nonzero outputs
+#	that never collectively surpass 1.0 for the same (x,y).  Whether 
+#	a character gets painted is random (as long as none of the 
+#	functions hogs the whole (0,1) output range), and I find that it
+#	is nice to have a decent amount of blank space -- so keeping the
+#	sum of the w/v/u outputs at about .1 to .5 seemed optimal.  Some
+#	of the functions below work better than others; some don't really
+#	work at all (to my liking) and some were made with different 
+#	domains in mind.  And they're out of order (they were made in 
+# 	triplets).  Thought I would keep them, though... 
+#		...			*** for future ref: try something polar...!
+
+#	w = max(0,(.3 - .05(((x-20)**2+(y-20)**2)**.3)))
+#	w = .00001*y**2+.00001*x**2
+#	v = max(0,(.2 - .00075*math.fabs(x**2-y**2)))
+#	v = .00001*(45-y)**2+.00001*(80-x)**2
+#	u = (.3 - .02*math.fabs((x**2+y**2)**.5-15))
+#	u = max(0,(.3 * 2**(-(((x-40)**2+(y-22)**2)**.5-13)**2)))
+#	w = ((x+y)/10-(int((x+y)/10)))/3
+#	v = (x**2-80*x+1600)*.0001+y*.004
+#	u = .4 - ((x-39)**2+(y-22)**2)*.005
+
+#	this defines the final output characters:
+	if r < w: return "("
+	elif r < (w+v): return "0"
+	elif r < (w+v+u): return ")"
+	else: return " "
+ 
+# one row:
+
+def print_row(y):
+	print brcg(0,y)+brcg(1,y)+brcg(2,y)+brcg(3,y)+ \
+	brcg(4,y)+brcg(5,y)+brcg(6,y)+brcg(7,y)+ \
+	brcg(8,y)+brcg(9,y)+brcg(10,y)+brcg(11,y)+ \
+	brcg(12,y)+brcg(13,y)+brcg(14,y)+brcg(15,y)+ \
+	brcg(16,y)+brcg(17,y)+brcg(18,y)+brcg(19,y)+ \
+	brcg(20,y)+brcg(21,y)+brcg(22,y)+brcg(23,y)+ \
+	brcg(24,y)+brcg(25,y)+brcg(26,y)+brcg(27,y)+ \
+	brcg(28,y)+brcg(29,y)+brcg(30,y)+brcg(31,y)+ \
+	brcg(32,y)+brcg(33,y)+brcg(34,y)+brcg(35,y)+ \
+	brcg(36,y)+brcg(37,y)+brcg(38,y)+brcg(39,y)+ \
+	brcg(40,y)+brcg(41,y)+brcg(42,y)+brcg(43,y)+ \
+	brcg(44,y)+brcg(45,y)+brcg(46,y)+brcg(47,y)+ \
+	brcg(48,y)+brcg(49,y)+brcg(50,y)+brcg(51,y)+ \
+	brcg(52,y)+brcg(53,y)+brcg(54,y)+brcg(55,y)+ \
+	brcg(56,y)+brcg(57,y)+brcg(58,y)+brcg(59,y)+ \
+	brcg(60,y)+brcg(61,y)+brcg(62,y)+brcg(63,y)+ \
+	brcg(64,y)+brcg(65,y)+brcg(66,y)+brcg(67,y)+ \
+	brcg(68,y)+brcg(69,y)+brcg(70,y)+brcg(71,y)+ \
+	brcg(72,y)+brcg(73,y)+brcg(74,y)+brcg(75,y)+ \
+	brcg(76,y)+brcg(77,y)+brcg(78,y)+brcg(79,y)
+
+
+print """
+Ready to paint?
+Make sure your window can fit 45 lines and 80 char per line.
+Hit a key when ready.  
+"""
+s= raw_input ('--->')
+
+for j in range(0,45):
+	print_row(j)
+
+print "painting complete"
+
+
+
+
