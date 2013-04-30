@@ -1,0 +1,946 @@
+# kozyol!
+
+# this is a russian card game.  it's a trick taking game and for now
+# i'm not going to bother to explain the rules.  have fun!  udachi..
+
+# to test the AIs, type in "Rando Orlando" as your name when prompted,
+# and set the score to be played at to a high number -- ten thousand,
+# a hundred thousand, a million.  Rando plays completely randomly
+# (within the rules of the game), while the other three are as normal:
+# Anatoly is a very simplified version of the AI, while Clement and
+# Tatiana are the longer, 170-line AIs, who differ from each other
+# by an integer or two in the code.  Ta and Cl generally come within
+# 1% or 2% of each other (often more like .01%!), while To lags 
+# behind with about 91%-94% of Ta/Cl's point total.  Rando usually
+# gets about 83%, give or take.  I find it remarkable that these
+# AI perform so consistently against each other, even after about
+# 3000 rounds... It would be interesting to see how good an AI could
+# get for such a simple game.  (These AIs are good, not great --
+# I think I could beat them pretty easily on 10,000 points, too.)  
+
+
+
+from __future__ import division
+from random import random
+
+def rules():
+  print """
+* * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+K O Z Y O L
+
+Kozyol is a trick-taking game played with four players.
+This version is just one of many.  
+
+This game uses the 7 to Ace of each suit.  Diamonds are
+considered trumps, as are ALL queens and jacks.  
+
+During each round, players pair off into teams (teams
+alternate during each round), with one's team partner
+sitting across from him/her.  """
+	pause = raw_input(' ')
+	print """The player with the 7 of diamonds begins the round, 
+playing any card from his/her hand.  The other three
+players must follow suit if they can -- but "trump"
+essentially counts as its own "suit".  The queen of 
+spades, for example, is not of the same "suit" as the 
+king or eight of spades, but is of the same "suit" as
+the nine of diamonds and the jack of clubs.  
+
+When all players have played one card in the trick, the
+winner of the trick is determined.  Trumps beat all 
+other cards, and if there are no trumps in the trick
+then the winning card is the strongest card of the 
+leading suit -- that is, the suit of the first card
+played in the trick.  """
+	pause = raw_input(' ')
+	print """Within a non-trump suit, the strength of cards is as
+follows, from strongest to weakest: 
+
+Ace, ten, king, nine, eight, seven.
+
+Among trump cards, the queens are the strongest, then
+the jacks, and finally the (rest of the) diamonds, 
+which follow the exact same strength hierarchy as the
+Ace-seven of other suits.  
+
+Queens and jacks have the following strength order:
+
+Club, spade, heart, diamond.  """
+	pause = raw_input(' ')
+	print """Thus the total hierarchy of cards in a trick is:
+
+Qc, Qs, Qh, Qd; Jc, Js, Jh, Jd; Ad, 10d, Kd, 9d, 8d,
+7d; [of the lead suit:] A, 10, K, 9, 8, 7.  
+
+The player who wins the trick puts all of those cards
+into his/her win pile, and begins the next trick.  """
+	pause = raw_input(' ')
+	print """To make things more complicated, cards have varying
+points attached to them: aces are eleven points, tens
+are ten points, kings are four points, queens are
+three points and jacks are two points.  
+
+When the eighth and last trick is played, the round is
+over.  At the end of the round, the points of the cards
+won by each player are totalled.  Players earn points
+as a team, receiving points from their own tricks and
+from those won by their partner.  """
+	pause = raw_input(' ')
+	print """* * * * * * * * * * * * * * * * * * * * * * * * * * * *
+	"""
+	pause = raw_input(' ')
+
+def reset_variables():
+	global players
+	global cards
+
+# player list: [0:key, 1:name, 2:hum/comp, 3:current turn order,
+#				4:current hand, 5:current win pile, 6:score]
+	players = ([0, "", "hum", 0, set([]), set([]), 0], \
+			[1, "Anatoly", "comp", 1, set([]), set([]), 0], \
+			[2, "Tatiana", "comp", 2, set([]), set([]), 0], \
+			[3, "Clement", "comp", 3, set([]), set([]), 0])
+
+# card list: [key, 0:location, 1:suit, 2:number/letter, 3:lead suit (T/F),
+# 4:actual suit, 5:in-suit strength (higher=stronger), 6:points]
+	cards={"c7":[0,"club","7",False,"clu",1,0], "c8": [0,"club","8",False,"clu",2,0], \
+		"c9": [0,"club","9",False,"clu",3,0],     "cK": [0,"club","K",False,"clu",4,4], \
+		"c10": [0,"club","10",False,"clu",5,10],  "cA": [0,"club","A",False,"clu",6,11], \
+		"cJ": [0,"club","J",False,"tru",16,2],     "cQ": [0,"club","Q",False,"tru",20,3], \
+		"s7": [0,"spade","7",False,"spa",1,0],    "s8": [0,"spade","8",False,"spa",2,0], \
+		"s9": [0,"spade","9",False,"spa",3,0],    "sK": [0,"spade","K",False,"spa",4,4], \
+		"s10": [0,"spade","10",False,"spa",5,10], "sA": [0,"spade","A",False,"spa",6,11], \
+		"sJ": [0,"spade","J",False,"tru",15,2],     "sQ": [0,"spade","Q",False,"tru",19,3], \
+		"h7": [0,"heart","7",False,"hea",1,0],    "h8": [0,"heart","8",False,"hea",2,0], \
+		"h9": [0,"heart","9",False,"hea",3,0],    "hK": [0,"heart","K",False,"hea",4,4], \
+		"h10": [0,"heart","10",False,"hea",5,10], "hA": [0,"heart","A",False,"hea",6,11], \
+		"hJ": [0,"heart","J",False,"tru",14,2],     "hQ": [0,"heart","Q",False,"tru",18,3], \
+		"d7": [0,"diamond","7",False,"tru",7,0],  "d8": [0,"diamond","8",False,"tru",8,0], \
+		"d9": [0,"diamond","9",False,"tru",9,0],  "dK": [0,"diamond","K",False,"tru",10,4], \
+		"d10": [0,"diamond","10",False,"tru",11,10], "dA": [0,"diamond","A",False,"tru",12,11], \
+		"dJ": [0,"diamond","J",False,"tru",13,2],   "dQ": [0,"diamond","Q",False,"tru",17,3]}
+
+
+def prompt_human_move(p, cards_in_trick):
+	print players[p][1] + "'s turn."
+	print ""
+	if len(players[p][4]) == 1:
+		dummy = raw_input("Your last card is "+cardname(list(players[p][4])[0])+"    ")
+		if dummy == "rules": rules()
+		print ""
+		move = list(players[p][4])[0]
+	else:
+		answer_dict = sort_cards(p, cards_in_trick)
+		if [is_valid(card, cards_in_trick, players[p][4]) for card in players[p][4]].count(True) == 1:
+			move = [card for card in players[p][4] if is_valid(card, cards_in_trick, players[p][4])][0]
+			dummy = raw_input("Your only legal card is "+cardname(move)+"    ")
+			if dummy == "rules": rules()
+			print ""
+		else:
+			valid = False
+			while valid == False:
+				print """Choose your move by entering the number next to one of your cards.
+				"""
+				number = raw_input(' - - >   ')
+				if number == "rules": rules()
+				elif number.isdigit() == False:
+					print "This is not a number"
+				elif int(number) not in answer_dict.keys():
+					print "This number is not in range."
+				elif is_valid(answer_dict[int(number)], cards_in_trick, players[p][4]):
+					move = answer_dict[int(number)]
+					valid = True
+				else:
+					print "Not a vaild move."
+				print ""
+	return move
+
+def sort_cards(p, cards_in_trick):
+	hand = []
+	for card in players[p][4]:
+		hand.append(card)
+	answer_dict = {}
+	print "Your hand:"
+	for number in range(1, len(hand)+1):
+		if "tru" in [cards[c][4] for c in hand]:
+			max_str_in_suit = max([cards[c][5] for c in hand if cards[c][4] == "tru"])
+			answer_dict[number] = [c for c in hand if cards[c][5] == max_str_in_suit][0]
+		elif "clu" in [cards[c][4] for c in hand]:
+			max_str_in_suit = max([cards[c][5] for c in hand if cards[c][4] == "clu"])
+			answer_dict[number] = [c for c in hand if (cards[c][5] == max_str_in_suit and cards[c][4] == "clu")][0]
+		elif "spa" in [cards[c][4] for c in hand]:
+			max_str_in_suit = max([cards[c][5] for c in hand if cards[c][4] == "spa"])
+			answer_dict[number] = [c for c in hand if (cards[c][5] == max_str_in_suit and cards[c][4] == "spa")][0]
+		elif "hea" in [cards[c][4] for c in hand]:
+			max_str_in_suit = max([cards[c][5] for c in hand if cards[c][4] == "hea"])
+			answer_dict[number] = [c for c in hand if (cards[c][5] == max_str_in_suit and cards[c][4] == "hea")][0]
+		if is_valid(answer_dict[number], cards_in_trick, players[p][4]):
+			print number, ":", cardname(answer_dict[number])[4:], " " * (18 - len(cardname(answer_dict[number]))), "< - valid"
+		else:
+			print number, ":", cardname(answer_dict[number])[4:]
+		hand.remove(answer_dict[number])
+	return answer_dict
+
+def anatoly(p, trick):
+	move = []
+	hand = [] # i.e., valid moves -- cards in hand that can be played in this trick
+	for c in players[p][4]:
+		if is_valid(c,trick,players[p][4]):
+			hand.append(c)
+	unk_c_ct = count_unknown_cards(p,trick)
+	next_opp = [player for player in range(4) if (players[player][3]-1)%4 == players[p][3]][0]
+	partner = [player for player in range(4) if (players[player][3]+2)%4 == players[p][3]][0]
+	prev_opp = [player for player in range(4) if (players[player][3]+1)%4 == players[p][3]][0]
+
+	if weakest_winner(trick,hand) != None:
+		if len([c for c in hand if cards[c][5]=="tru"]) > unk_c_ct["tru"]/2.5:
+			for strength in range(20,0,-1):		# strongest card
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+		else:
+			move = weakest_winner(trick,hand)
+	else:
+		for strength in range(20):
+			if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10 and \
+			len([cc for cc in players[p][4] if cards[cc][5]==cards[c][5]])==1 ] != []:
+				move = [c for c in hand if cards[c][5] == strength]
+				break
+		for strength in range(20):
+			if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+				move = [c for c in hand if cards[c][5] == strength]
+				break
+		for strength in range(20):
+			if [c for c in hand if cards[c][5] == strength] != []:
+				move = [c for c in hand if cards[c][5] == strength]
+				break
+# output
+	if type(move) == list:
+		if len(move) == 1:
+			move = move[0]
+		elif move == []:
+			print "ERROR!"
+			r = int(random()*len(hand))
+			move = hand[r]
+		else:
+			r = int(random()*len(move))
+			move = move[r]
+	return move
+
+
+def tatiana(p, trick):
+	move = []
+	hand = [] # i.e., valid moves -- cards in hand that can be played in this trick
+	for c in players[p][4]:
+		if is_valid(c,trick,players[p][4]):
+			hand.append(c)
+	unk_c_ct = count_unknown_cards(p,trick)
+	next_opp = [player for player in range(4) if (players[player][3]-1)%4 == players[p][3]][0]
+	partner = [player for player in range(4) if (players[player][3]+2)%4 == players[p][3]][0]
+	prev_opp = [player for player in range(4) if (players[player][3]+1)%4 == players[p][3]][0]
+
+# playing the first card:
+	if len(trick) == 0:
+		if [c for c in hand if (cards[c][5] == 6 and cards[c][4] != "tru" and \
+			unk_c_ct[cards[c][4]] > 2 and aimem[prev_opp][1][cards[c][4]]==True and \
+			(aimem[next_opp][1][cards[c][4]]==True or aimem[partner][1][cards[c][4]]==False) )] != []: # ace..
+			move = [c for c in hand if (cards[c][5] == 6 and cards[c][4] != "tru" and \
+			unk_c_ct[cards[c][4]] > 2 and aimem[prev_opp][1][cards[c][4]]==True and \
+			(aimem[next_opp][1][cards[c][4]]==True or aimem[partner][1][cards[c][4]]==False) )]
+		elif [c for c in hand if cards[c][4] != "tru" and \
+		[cc for cc in hand if cards[cc][4] == cards[c][4]] == [c] ] != []:  # get rid of last card of a suit
+			move = [c for c in hand if cards[c][4] != "tru" and \
+			[cc for cc in hand if cards[cc][4] == cards[c][4] ] == [c] ]
+		elif [c for c in hand if cards[c][4] != "tru" and cards[c][5] < 4] != []: # 7, 8 or 9
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] < 4]
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+# playing the second card:
+	elif len(trick) == 1:
+		if [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True] != []:
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True]
+		elif cards[trick[0]][6] > 9 and cards[hand[0]][3] == False and [c for c in hand if \
+			determine_winner(trick+[c]) == c] != []: # a/10 is played and we can play off-suit and win
+			if cards[trick[0]][5] != "tru" and aimem[next_opp][1][cards[trick[0]][4]] \
+			== True and unk_c_ct[cards[trick[0]][4]] > 1 :
+				if [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9] != []:
+					move = [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9]
+				else:
+					move = weakest_winner(trick, hand)
+			else:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		elif weakest_winner(trick,hand) != None:
+			if len([c for c in hand if cards[c][5]=="tru"]) > unk_c_ct["tru"]/2.5:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+			else:
+				move = weakest_winner(trick,hand)
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10 and \
+				len([cc for cc in players[p][4] if cards[cc][5]==cards[c][5]])==1 ] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+
+
+# playing the third card:
+	elif len(trick) == 2:
+		if [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True
+			and determine_winner(trick+[c])==c] != []:
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True]
+		elif cards[trick[0]][6] + cards[trick[1]][6]>6 and cards[hand[0]][3] == False and [c for c in \
+			hand if determine_winner(trick+[c]) == c] != []: # a/10 is played and we can play off-suit and win
+			if cards[trick[0]][5] != "tru" and aimem[next_opp][1][cards[trick[0]][4]] \
+			== True and unk_c_ct[cards[trick[0]][4]] > 1 :
+				if [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9] != []:
+					move = [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9]
+				else:
+					move = weakest_winner(trick, hand)
+			else:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		elif weakest_winner(trick,hand) != None:
+			if len([c for c in hand if cards[c][5]=="tru"]) > unk_c_ct["tru"]/2.5:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+			else:
+				move = weakest_winner(trick,hand)
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10 and \
+				len([cc for cc in players[p][4] if cards[cc][5]==cards[c][5]])==1 ] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+
+# playing the last card:
+	elif len(trick) == 3:
+		if players[cards[determine_winner(trick)][0]][3] == 1: # i.e., p's partner is winning so far
+			if [c for c in hand if cards[c][6] > 9] != []: # if p has a 10 or ace
+				if [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru")] != []: # .. that isn't a trump
+					if [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )] != []:      # .. that is of a depleted suit
+						move = [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )]
+					else:
+						move = [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru")]
+				else:
+					move = [c for c in hand if cards[c][6] > 9]
+			elif [c for c in hand if cards[c][6] == 4] != []:
+				if [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru")] != []:
+					if [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )] != []:
+						move = [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )]
+					else:
+						move = [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru")]
+				else:
+					move = [c for c in hand if cards[c][6] == 4]
+			else:
+				for strength in range(20):
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		else:
+			if [c for c in hand if cards[c][6]>9 and determine_winner(trick+[c])==c] != []:
+				move = [c for c in hand if cards[c][6]>9 and determine_winner(trick+[c])==c]
+			elif [c for c in hand if cards[c][6]==4 and determine_winner(trick+[c])==c] != []:
+				move = [c for c in hand if cards[c][6]==4 and determine_winner(trick+[c])==c]
+			elif weakest_winner(trick, hand) != None:
+				move = weakest_winner(trick, hand)
+			else:
+				if [c for c in hand if cards[c][6] < 10] != []:
+					for strength in range(20):
+						if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+							move = [c for c in hand if cards[c][5] == strength and cards[c][6] < 10]
+							break
+				else:
+					for strength in range(20):
+						if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+							move = [c for c in hand if cards[c][5] == strength and cards[c][6] < 10]
+							break
+
+# output
+	if type(move) == list:
+		if len(move) == 1:
+			move = move[0]
+		elif move == []:
+			print "ERROR!"
+			r = int(random()*len(hand))
+			move = hand[r]
+		else:
+			r = int(random()*len(move))
+			move = move[r]
+	return move
+
+
+def clement(p, trick):
+	move = []
+	hand = [] # i.e., valid moves -- cards in hand that can be played in this trick
+	for c in players[p][4]:
+		if is_valid(c,trick,players[p][4]):
+			hand.append(c)
+	unk_c_ct = count_unknown_cards(p,trick)
+	next_opp = [player for player in range(4) if (players[player][3]-1)%4 == players[p][3]][0]
+	partner = [player for player in range(4) if (players[player][3]+2)%4 == players[p][3]][0]
+	prev_opp = [player for player in range(4) if (players[player][3]+1)%4 == players[p][3]][0]
+
+# playing the first card:
+	if len(trick) == 0:
+		if [c for c in hand if (cards[c][5] == 6 and cards[c][4] != "tru" and \
+			unk_c_ct[cards[c][4]] > 3 and aimem[prev_opp][1][cards[c][4]]==True and \
+			(aimem[next_opp][1][cards[c][4]]==True or aimem[partner][1][cards[c][4]]==False) )] != []: # ace..
+			move = [c for c in hand if (cards[c][5] == 6 and cards[c][4] != "tru" and \
+			unk_c_ct[cards[c][4]] > 3 and aimem[prev_opp][1][cards[c][4]]==True and \
+			(aimem[next_opp][1][cards[c][4]]==True or aimem[partner][1][cards[c][4]]==False) )]
+		elif [c for c in hand if cards[c][4] != "tru" and \
+		[cc for cc in hand if cards[cc][4] == cards[c][4]] == [c] ] != []:  # get rid of last card of a suit
+			move = [c for c in hand if cards[c][4] != "tru" and \
+			[cc for cc in hand if cards[cc][4] == cards[c][4] ] == [c] ]
+		elif [c for c in hand if cards[c][4] != "tru" and cards[c][5] < 4] != []: # 7, 8 or 9
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] < 4]
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+# playing the second card:
+	elif len(trick) == 1:
+		if [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True] != []:
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True]
+		elif cards[trick[0]][6] > 9 and cards[hand[0]][3] == False and [c for c in hand if \
+			determine_winner(trick+[c]) == c] != []: # a/10 is played and we can play off-suit and win
+			if cards[trick[0]][5] != "tru" and aimem[next_opp][1][cards[trick[0]][4]] \
+			== True and unk_c_ct[cards[trick[0]][4]] > 1 :
+				if [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9] != []:
+					move = [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9]
+				else:
+					move = weakest_winner(trick, hand)
+			else:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		elif weakest_winner(trick,hand) != None:
+			if len([c for c in hand if cards[c][5]=="tru"]) > unk_c_ct["tru"]/2.5:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+			else:
+				move = weakest_winner(trick,hand)
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10 and \
+				len([cc for cc in players[p][4] if cards[cc][5]==cards[c][5]])==1 ] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+
+# playing the third card:
+	elif len(trick) == 2:
+		if [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True
+			and determine_winner(trick+[c])==c] != []:
+			move = [c for c in hand if cards[c][4] != "tru" and cards[c][5] == 6 and cards[c][3] == True]
+		elif (cards[trick[0]][6] + cards[trick[1]][6])>6 and cards[hand[0]][3] == False and [c for c in \
+			hand if determine_winner(trick+[c]) == c] != []: # a/10 is played and we can play off-suit and win
+			if cards[trick[0]][5] != "tru" and aimem[next_opp][1][cards[trick[0]][4]] \
+			== True and unk_c_ct[cards[trick[0]][4]] > 1 :
+				if [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9] != []:
+					move = [c for c in hand if cards[c][4] == "tru" and cards[c][6] > 9]
+				else:
+					move = weakest_winner(trick, hand)
+			else:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		elif weakest_winner(trick,hand) != None:
+			if len([c for c in hand if cards[c][5]=="tru"]) > unk_c_ct["tru"]/2.5:
+				for strength in range(20,0,-1):		# strongest card
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+			else:
+				move = weakest_winner(trick,hand)
+		else:
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10 and \
+				len([cc for cc in players[p][4] if cards[cc][5]==cards[c][5]])==1 ] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+			for strength in range(20):
+				if [c for c in hand if cards[c][5] == strength] != []:
+					move = [c for c in hand if cards[c][5] == strength]
+					break
+
+# playing the last card:
+	elif len(trick) == 3:
+		if players[cards[determine_winner(trick)][0]][3] == 1: # i.e., p's partner is winning so far
+			if [c for c in hand if cards[c][6] > 9] != []: # if p has a 10 or ace
+				if [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru")] != []: # .. that isn't a trump
+					if [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )] != []:      # .. that is of a depleted suit
+						move = [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )]
+					else:
+						move = [c for c in hand if (cards[c][6] > 9 and cards[c][4] != "tru")]
+				else:
+					move = [c for c in hand if cards[c][6] > 9]
+			elif [c for c in hand if cards[c][6] == 4] != []:
+				if [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru")] != []:
+					if [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )] != []:
+						move = [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru" \
+						and unk_c_ct[ cards[c][4] ] < 4 )]
+					else:
+						move = [c for c in hand if (cards[c][6] == 4 and cards[c][4] != "tru")]
+				else:
+					move = [c for c in hand if cards[c][6] == 4]
+			else:
+				for strength in range(20):
+					if [c for c in hand if cards[c][5] == strength] != []:
+						move = [c for c in hand if cards[c][5] == strength]
+						break
+		else:
+			if [c for c in hand if cards[c][6]>9 and determine_winner(trick+[c])==c] != []:
+				move = [c for c in hand if cards[c][6]>9 and determine_winner(trick+[c])==c]
+			elif [c for c in hand if cards[c][6]==4 and determine_winner(trick+[c])==c] != []:
+				move = [c for c in hand if cards[c][6]==4 and determine_winner(trick+[c])==c]
+			elif weakest_winner(trick, hand) != None:
+				move = weakest_winner(trick, hand)
+			else:
+				if [c for c in hand if cards[c][6] < 10] != []:
+					for strength in range(20):
+						if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+							move = [c for c in hand if cards[c][5] == strength and cards[c][6] < 10]
+							break
+				else:
+					for strength in range(20):
+						if [c for c in hand if cards[c][5] == strength and cards[c][6] < 10] != []:
+							move = [c for c in hand if cards[c][5] == strength and cards[c][6] < 10]
+							break
+# output
+	if type(move) == list:
+		if len(move) == 1:
+			move = move[0]
+		elif move == []:
+			print "ERROR 1!"
+			r = int(random()*len(hand))
+			move = hand[r]
+		elif move == None:
+			print "ERROR 2!"
+			r = int(random()*len(hand))
+			move = hand[r]
+		else:
+			r = int(random()*len(move))
+			move = move[r]
+	return move
+
+def weakest_winner(cards_in_trick, hand):
+	weakest_winner = None
+	for card in hand:
+		if determine_winner(cards_in_trick+[card]) == card:
+			if weakest_winner == None:
+				weakest_winner = card
+			elif cards[card][5] < cards[weakest_winner][5]:
+				weakest_winner = card
+	return weakest_winner
+
+def count_unknown_cards(p,trick):
+	hand = list(players[p][4])
+	unknown_clu = 6 - len([c for c in (hand+trick) if cards[c][4]=="clu"])
+	for p in range(4):
+		unknown_clu -= len([c for c in aimem[p][0] if cards[c][4]=="clu"])
+	unknown_hea = 6 - len([c for c in (hand+trick) if cards[c][4]=="hea"])
+	for p in range(4):
+		unknown_clu -= len([c for c in aimem[p][0] if cards[c][4]=="hea"])
+	unknown_spa = 6 - len([c for c in (hand+trick) if cards[c][4]=="spa"])
+	for p in range(4):
+		unknown_clu -= len([c for c in aimem[p][0] if cards[c][4]=="spa"])
+	unknown_tru = 14 - len([c for c in (hand+trick) if cards[c][4]=="tru"])
+	for p in range(4):
+		unknown_clu -= len([c for c in aimem[p][0] if cards[c][4]=="tru"])
+	return {"clu": unknown_clu, "hea": unknown_hea, "spa": unknown_spa, "tru": unknown_tru}
+
+def reset_aimem():  # ( AI memory )
+	global aimem    # True if player MAY have card of that suit, False if not
+	aimem = [ [ [], {"clu": True, "hea": True, "spa": True, "tru": True} ], \
+			[ [], {"clu": True, "hea": True, "spa": True, "tru": True} ], \
+			[ [], {"clu": True, "hea": True, "spa": True, "tru": True} ], \
+			[ [], {"clu": True, "hea": True, "spa": True, "tru": True} ] ]
+
+def update_aimem(p, move, trick):
+	aimem[p][0].append(move)
+	if cards[move][3] == False:
+		aimem[p][1][ cards[trick[0]][4] ] = False
+
+def randomly_guessing_AI(p, cards_in_trick):
+	hand = players[p][4]
+	valid_moves = []
+	for c in hand:
+		if is_valid(c,cards_in_trick,hand):
+			valid_moves.append(c)
+	
+	r = int ( random() * len(valid_moves) )
+	return valid_moves[r]
+
+def mother_AI(p, trick):
+	hand = [] # i.e., valid moves -- cards in hand that can be played in this trick
+	for c in players[p][4]:
+		if is_valid(c,trick,players[p][4]):
+			hand.append(c)
+	if len(hand) == 1:
+		move = hand[0]
+	else:
+		if p == 0:
+			move = randomly_guessing_AI(p,trick)
+		elif p == 1:
+			move = clement(p,trick)#anatoly(p, trick) -- tolya isn't as good ... !
+		elif p == 2:
+			move = tatiana(p, trick)
+		elif p == 3:
+			move = clement(p, trick)
+	return move
+
+def is_valid(card, cards_in_trick, hand):
+	if cards_in_trick == []:
+		return True
+	else:
+		lead_suit = cards[cards_in_trick[0]][4]
+		if lead_suit in [cards[c][4] for c in hand]:
+			if cards[card][4] == lead_suit:
+				return True
+			else:
+				return False
+		else:
+			return True
+
+def take_turn(p, cards_in_trick):
+	print ""
+	if players[p][2] == "hum":
+		move = prompt_human_move(p, cards_in_trick)
+	else:
+		move = mother_AI(p, cards_in_trick)
+	if players[p][3] == 0:
+		for c in cards:
+			if cards[c][4] == cards[move][4]:
+				cards[c][3] = True
+			else:
+				cards[c][3] = False
+	players[p][4].remove(move)
+	return move
+
+def determine_winner(cards_in_trick):
+	winning_card = cards_in_trick[0]
+	for c in cards_in_trick[1:]:
+		if (cards[c][3] == True or cards[c][4] == "tru") and cards[c][5]>cards[winning_card][5]:
+			winning_card = c
+	return winning_card
+
+#def determine_winner_OLD(cards_in_trick): # unused...
+#	winning_candidates = []
+#	for c in range(4):
+#		winning_candidates.append(cards_in_trick[c]) # how can i equate w_c with c_i_t
+#	for c in winning_candidates:                     # without having them refer to 
+#		if cards[c][3] == False and cards[c][4] != "tru": # the same object? i want a
+#			winning_candidates.remove(c)             # *copy* that i can mess with...
+#	winning_card = winning_candidates[0]
+#	for c in winning_candidates:
+#		if cards[c][5] > cards[winning_card][5]:
+#			winning_card = c
+#	return winning_card
+
+def cardname(card):
+	return "the " + cards[card][2] + " of " + cards[card][1] +"s"
+
+def ordinal(number):
+	if number == 1: return "first"
+	if number == 2: return "second"
+	if number == 3: return "third"
+	if number == 4: return "fourth"
+	if number == 5: return "fifth"
+	if number == 6: return "sixth"
+	if number == 7: return "seventh"
+	if number == 8: return "eighth"
+	if number == 9: return "ninth"
+	if number == 10: return "tenth"
+
+def one_hand(h):
+	print """
+
+
+	"""
+	print "+++ " + ordinal(h+1).upper() + " HAND +++"
+	print """
+	"""
+	cards_in_trick = []
+	for turn_num in range(4):
+		for p in range(4):
+			if players[p][3] == turn_num:
+				move = take_turn(p, cards_in_trick)
+				cards_in_trick.append(move)
+				update_aimem(p, move, cards_in_trick)
+				print players[p][1] + " plays " + cardname(move)
+				print ""
+				if players[0][1] != "Rando Orlando": 
+					pause = raw_input('  -  -  -  -  -  -  -     ')
+					if pause == "rules": rules()
+					if pause == "getinfo": getinfo(cards_in_trick)
+	winning_card = determine_winner(cards_in_trick)
+	winning_player = cards[winning_card][0]
+	for c in cards_in_trick:
+		players[winning_player][5].add(c)
+	print players[winning_player][1] + " wins with " + cardname(winning_card) + "."
+	print """
+
+	"""
+	if players[0][1] != "Rando Orlando": 
+		pause= raw_input('  -  -  -  -  -  -  -     ')
+		if pause == "getinfo": getinfo(cards_in_trick)
+		if pause == "aimem": print aimem
+
+	d = players[winning_player][3]
+	for p in range(4):
+		players[p][3] = (players[p][3]-d) % 4
+
+def change_order(round_perm_raw):
+	round_perm = round_perm_raw % 6
+	if round_perm == 0:
+		players[0][3] = 0
+		players[1][3] = 1
+		players[2][3] = 2
+		players[3][3] = 3
+	elif round_perm == 1:
+		players[0][3] = 0
+		players[1][3] = 2
+		players[2][3] = 3
+		players[3][3] = 1
+	elif round_perm == 2:
+		players[0][3] = 0
+		players[1][3] = 3
+		players[2][3] = 1
+		players[3][3] = 2
+	elif round_perm == 3:
+		players[0][3] = 0
+		players[1][3] = 3
+		players[2][3] = 2
+		players[3][3] = 1
+	elif round_perm == 4:
+		players[0][3] = 0
+		players[1][3] = 1
+		players[2][3] = 3
+		players[3][3] = 2
+	elif round_perm == 5:
+		players[0][3] = 0
+		players[1][3] = 2
+		players[2][3] = 1
+		players[3][3] = 3
+	d = players[cards["d7"][0]][3]
+	for p in range(4):
+		players[p][3] = (players[p][3]-d) % 4
+
+def deal_out_all_cards():
+	for player in range(4):
+		players[player][4] = set([])
+	players_needing_cards = [0,1,2,3]
+	for card in cards:
+		r = int(random()*len(players_needing_cards))
+		cards[card][0] = players_needing_cards[r]
+		players[players_needing_cards[r]][4].add(card)
+		if len(players[players_needing_cards[r]][4]) == 8:
+			players_needing_cards.remove(players_needing_cards[r])
+
+def score_round():
+	indv_score = [0,0,0,0]
+	for p in range(4):
+		indv_score[p] = sum([cards[card][6] for card in players[p][5]])
+		if indv_score[p] == 0:
+			print players[p][1], "did not win any points."
+		else:
+			print players[p][1], "won", int(indv_score[p]), "points from these cards:"
+			for name in [cardname(card) for card in players[p][5] if cards[card][6] > 0]:
+				print name[4:]
+		print ""
+	team1 = [player for player in range(4) if (players[player][3] % 2) == 0]
+	team2 = [player for player in range(4) if (players[player][3] % 2) == 1]
+	for team in (team1,team2):
+		team_score = indv_score[team[0]] + indv_score[team[1]]
+		players[team[0]][6] += team_score
+		players[team[1]][6] += team_score
+		print players[team[0]][1], "and", players[team[1]][1], "each receive", team_score, "points."
+	print """
+	Total scores:
+	"""
+	for p in range(4):
+		if p == 0: space = 7
+		else: space = len(players[0][1])
+		print players[p][1], " " * space + ": " + str(players[p][6])
+		players[p][5] = set([])
+
+def player_with_x_order(x):
+	return players[[p for p in range(4) if players[p][3] == x][0]][1]
+
+def one_round(round_perm):
+	print """
+*  *  *
+"""
+	deal_out_all_cards()
+	change_order(round_perm)
+	reset_aimem()
+	print "Player order: " + player_with_x_order(0) + ", " + player_with_x_order(1) + ", " \
+	+ player_with_x_order(2) + ", " + player_with_x_order(3) + "."
+	print ""
+	for p in range(4):
+		if players[p][2] == "hum": 
+			print players[p][1] + ", you are playing with", players[ [p2 for p2 in \
+			range(4) if players[p2][3] == (players[p][3] + 2 ) %4 ][0] ][1] +"."
+	print ""
+	for h in range(8):
+		one_hand(h)
+	score_round()
+	print ""
+
+
+	if players[0][1] != "Rando Orlando": pause = raw_input('  -  -  -  -  -  -  -     ')
+
+
+
+
+
+def one_game():
+	reset_variables()
+	print """Enter your name and press return.
+
+
+	"""
+
+	while players[0][1] == "":
+		players[0][1] = raw_input(' - - >   ')
+		print ""
+	if players[0][1] == "Rando Orlando":
+		players[0][2] = "comp"
+	point_limit_is_invalid = True
+	print """
+How many points would you like to play to?
+Enter 'rules' to see rules.
+
+	"""
+	while point_limit_is_invalid:          # stoooopid. what's the easy way? answer: isdigit()
+		point_limit_input = raw_input(' - - >   ')
+		if point_limit_input == "rules": rules()
+		if point_limit_input != "":
+			point_limit_is_invalid = False
+			for char in point_limit_input:
+				if char not in ("0","1","2","3","4","5","6","7","8","9"):
+					point_limit_is_invalid = True
+			if point_limit_is_invalid == False:
+				if int(point_limit_input) == 0:
+					point_limit_is_invalid = True
+				else:
+					point_limit = int(point_limit_input)
+		print ""
+	round_perm = int(random()*6)
+	round_num = 0
+	while max([players[p][6] for p in (0,1,2,3)]) < point_limit:
+		round_num += 1
+		print """
+
+
+
+		"""
+		print "   R O U N D   N U M B E R  ", round_num
+		if players[0][1] != "Rando Orlando": pause= raw_input('                             ')
+		one_round(round_perm)
+		round_perm += 1
+	winning_score = max([players[p][6] for p in (0,1,2,3)])
+	winning_players = [players[p][1] for p in (0,1,2,3) if players[p][6] == winning_score]
+	if len(winning_players) == 1:
+		print winning_players[0], "is the winner with", winning_score, "points!"
+	elif len(winning_players) == 2:
+		print winning_players[0], "and", winning_players[1], \
+		"have tied for the win with", winning_score, "points!"
+	elif len(winning_players) == 3:
+		print winning_players[0] + ", " + winning_players[1] + " and " + \
+		winning_players[2] + " have tied for the win with " + \
+		str(winning_score) + " points!"
+	else:
+		print "It's a four-way tie!"
+
+
+	
+
+
+def game_loop():
+	print """
+
+
+K O 3 E /\\
+
+(KOZYOL)
+
+("goat")
+
+***
+
+"""
+
+	new_game = 'y'
+	while new_game == 'y':
+		one_game()
+		print ""
+		new_game = raw_input('Type "y" and hit return to begin a new game.   ')
+		print ""
+	print """Thanks for playing!
+
+	"""
+
+
+
+# running:
+pause = "no"
+game_loop()
+
+
+
+
+
