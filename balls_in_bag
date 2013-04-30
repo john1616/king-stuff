@@ -1,0 +1,58 @@
+# this is a probability problem.  
+
+# there are nine balls in a bag: 4 blue, 3 green, 2 red.  they are drawn from
+# the bag two at a time.  if a pair of drawn balls are of the same color, one
+# is removed and the other is returned to the bag.  if they are of different
+# colors, both are removed.  if there is one ball, it is drawn and removed.  
+# what are the chances that the whole process takes 5, 6, 7 or 8 draws?  
+
+# solution:
+
+# first we will calculate the probability of every permutation of drawings.  
+
+from __future__ import division
+
+
+def drawpair(round):
+  plist[round] = {}
+	for case in plist[round-1]:
+		# first pick:
+		for ball1 in range(3):
+			bag = list(case)
+			if bag[ball1] > 0:
+				p1 = bag[ball1] / sum(bag)
+				bag[ball1] = bag[ball1] - 1
+				if bag == [0,0,0]:
+					results[round] += p1 * plist[round-1][case]
+				else:
+					bag_after1 = tuple(bag)
+					for ball2 in range(3):
+						bag = list(bag_after1)
+						if bag[ball2] > 0:
+							p2 = bag[ball2] / sum(bag)
+							if ball1 != ball2:
+								bag[ball2] = bag[ball2] - 1
+							if tuple(bag) in plist[round]:
+								plist[round][tuple(bag)] += p1 * p2 * plist[round-1][case]
+							else:
+								plist[round][tuple(bag)] = p1 * p2 * plist[round-1][case]
+							if bag == [0,0,0]:
+								results[round] += p1 * plist[round-1][case]
+
+
+
+
+
+
+
+
+plist = { 0 : {(4,3,2) : 1} } # { round : }
+print plist
+results = {5:0,6:0,7:0,8:0}
+
+for r in range(1,9):
+	k = raw_input('***')
+	drawpair(r)
+	print plist
+
+print results
