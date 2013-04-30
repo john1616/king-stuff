@@ -1,0 +1,1118 @@
+# this program is not finished, but it can run (with many bugs).  it is being made
+# for my own education and entertainment.  it is based on a board game called 
+# "tigris and euphrates".  if you like the program, go buy the game!!
+
+# (this code is for Python)
+
+#  				tigris and euphrates					#
+#					draft number two						#
+
+
+
+# TABLE OF CONTENTS:
+# 1) notes
+# 2) imports
+# 3) states in the game - the location of each piece, players' hands, scores, 
+#	 etc. this information would be enough to recreate a game at a given
+#	 moment on a physical board. 
+# 4) graphical representations - the board, as it is displayed in terminal or 
+#	 whatever you're using
+# 5) moves, rules and regulations
+# 6) game structure - gameplay organized into a cohesive flow, i.e. a game
+# T) test running
+
+
+
+##1## notes
+
+# sections are referred to as #1# for section 1, etc.
+# terminal window should be set to at least 100x50.
+# i generally use q (or (x,y)) to describe "grid" coordinates -- this is the 
+# board grid as concerns gameplay.  graphics are determined by variables 
+# stored in bg ("board graphics"; it is a dict of 1171 strings), and are 
+# described in functions by v.  the player will see the board labled with
+# letters for the horizontal axis and numbers for the vertical axis, which
+# is called the coor(dinate).  
+
+###
+
+##2## imports:
+
+from random import random
+
+def num_to_alpha(x):
+	if x == 1: return "A"        
+	elif x == 2: return "B"
+	elif x == 3: return "C"
+	elif x == 4: return "D"
+	elif x == 5: return "E"
+	elif x == 6: return "F"
+	elif x == 7: return "G"
+	elif x == 8: return "H"
+	elif x == 9: return "I"
+	elif x == 10: return "J"
+	elif x == 11: return "K"
+	elif x == 12: return "L"
+	elif x == 13: return "M"
+	elif x == 14: return "N"
+	elif x == 15: return "O"
+	elif x == 16: return "P"
+	elif x == 17: return "Q"
+	elif x == 18: return "R"
+	elif x == 19: return "S"
+	elif x == 20: return "T"
+	elif x == 21: return "U"
+	elif x == 22: return "V"
+	elif x == 23: return "W"
+	elif x == 24: return "X"
+	elif x == 25: return "Y"
+	elif x == 26: return "Z"
+	else:
+		print "ERROR #001"
+
+def alpha_to_num(letter):
+	if letter.upper() == "A": x = 1
+	elif letter.upper() == "B": x = 2
+	elif letter.upper() == "C": x = 3
+	elif letter.upper() == "D": x = 4
+	elif letter.upper() == "E": x = 5
+	elif letter.upper() == "F": x = 6
+	elif letter.upper() == "G": x = 7
+	elif letter.upper() == "H": x = 8
+	elif letter.upper() == "I": x = 9
+	elif letter.upper() == "J": x = 10
+	elif letter.upper() == "K": x = 11
+	elif letter.upper() == "L": x = 12
+	elif letter.upper() == "M": x = 13
+	elif letter.upper() == "N": x = 14
+	elif letter.upper() == "O": x = 15
+	elif letter.upper() == "P": x = 16
+	elif letter.upper() == "Q": x = 17
+	elif letter.upper() == "R": x = 18
+	elif letter.upper() == "S": x = 19
+	elif letter.upper() == "T": x = 20
+	elif letter.upper() == "U": x = 21
+	elif letter.upper() == "V": x = 22
+	elif letter.upper() == "W": x = 23
+	elif letter.upper() == "X": x = 24
+	elif letter.upper() == "Y": x = 25
+	elif letter.upper() == "Z": x = 26
+	else:
+		print "ERROR #002"
+	return x
+
+###
+
+##3## states in the game
+
+# there will be a number of lists/dicts/sets for keeping track of the elements
+# of the game, some of are dependent on others (for example, a list of
+# locations on the board and what pieces, if any, are on them).  there will
+# be functions that update the dependent lists (which must be called before
+# any of the dependent lists are used).
+#
+# game board:
+# the board is 16 x 11.  it is marked (for the human player) as A to P on the
+# horizontal axis and 1 to 11 on the vertical axis.  i will keep these
+# coordinates in the program mechanics, but will use integers for A to P
+# (i.e., 1 to 16).  thus, the grid of the game board (and what is on the grid)
+# will be represented by a dict of 176 tuples, from (1,1) to (11,16).  the
+# values of these tuples may one of the following strings (not written here
+# with ""; remarks in parentheses are not included in the string):
+#
+#	empty			river
+#	red (tile)		blue (tile)		black (tile)	green (tile)
+#	rl1 (red leader of player 1)	al1 (black leader of player 1)
+#	ul1 (blue leader of player 1)	gl1 (green leader of player 1)
+#	rl2 ... 						... gl4
+#	catastrophe			monument (NW/NE/SW/SE; of two colors)
+#	red w treasure		monument w treasure
+#
+# in the original game, there are two rivers that run across the board.  here,
+# that setup will be the default, but i will construct the program to allow
+# for a way to make a custom river.  
+
+def create_main_grid():         # creates a dict that has coordinates on the
+	grid = {}                   # board as keys and strings as values, which
+	for i in range(1,17):       # represent the pieces on the board.  
+		for j in range(1,12):
+			grid[(i,j)] = "empty"
+	return grid
+
+def grid_main_to_user(q):   	# translates a tuple coordinate on the board
+	x, y = q					# to the corresponding string that would be
+	coor = ""                   # used and understood by the human player
+	coor += num_to_alpha(x)
+	coor += str(y)
+	return coor
+
+def grid_user_to_main(coor):    		# translates a coordinate as a letter-
+	if coor.lower() == "remove":
+		return 0
+	elif coor[0].lower() not in ['a','b','c','d','e','f','g','h', \
+	'i','j','k','l','m','n','o','p']:   # number string to a tuple coordinate.
+		return False					# returns False in case of an error
+	elif coor[1:].isdigit() == False:
+		return False
+	elif int(coor[1:]) > 11 or int(coor[1:]) < 1:
+		return False
+	else:
+		x = alpha_to_num(coor[0])
+		y = int(coor[1:])
+		return (x,y)
+
+def define_default_river():		# simply returns the coordinates of the river
+	river1 = [(1,4),(2,4),(3,4),(4,4),(4,3),(5,3),(5,2),(5,1), \
+			(6,1),(7,1),(8,1),(9,1)]
+
+	river2 = [(1,7),(2,7),(3,7),(4,7),(4,8),(5,8),(6,8),(7,8),(7,9), \
+		(8,9),(9,9),(10,9),(11,9),(12,9),(13,9),(13,8),(13,7),(14,7),(15,7), \
+		(15,6),(15,5),(16,5),(16,4),(15,4),(14,4),(14,3),(13,3),(13,2),(13,1)]
+
+	return (river1,river2)
+
+def define_default_treasure():	# returns coordinates of the treasures
+	return [(2,2),(6,3),(11,1),(16,2),(14,5),(9,7),(2,8),(6,10),(11,11),(15,9)]
+
+def get_leader_location():
+	leader_loc = {"rl1":0,"ul1":0,"al1":0,"gl1":0,"rl2":0,"ul2":0,"al2":0, \
+	"gl2":0,"rl3":0,"ul3":0,"al3":0,"gl3":0,"rl4":0,"ul4":0,"al4":0,"gl4":0}
+	for q in grid:
+		if grid[q] in leaders:
+			leader_loc[grid[q]] = q
+	return leader_loc
+
+def randomly_assign_player_symbols():
+	symbols = {1:0,2:0,3:0,4:0}
+	available_symbols = ["o","x","+","*"]
+	r1 = random()
+	if r1 < .25:
+		symbols[1] = available_symbols[0]
+		available_symbols.remove(symbols[1])
+	elif r1 < .5:
+		symbols[1] = available_symbols[1]
+		available_symbols.remove(symbols[1])
+	elif r1 < .75:
+		symbols[1] = available_symbols[2]
+		available_symbols.remove(symbols[1])
+	else:
+		symbols[1] = available_symbols[3]
+		available_symbols.remove(symbols[1])
+	r2 = random()
+	if r2 < .3333:
+		symbols[2] = available_symbols[0]
+		available_symbols.remove(symbols[2])
+	elif r2 < .6667:
+		symbols[2] = available_symbols[1]
+		available_symbols.remove(symbols[2])
+	else:
+		symbols[2] = available_symbols[2]
+		available_symbols.remove(symbols[2])
+	r3 = random()
+	if r3 < .5:
+		symbols[3] = available_symbols[0]
+		available_symbols.remove(symbols[3])
+	else:
+		symbols[3] = available_symbols[1]
+	symbols[4] = available_symbols[0]
+	return symbols
+
+def reset_variables_and_board():
+	# here's where there would be a control on which river / treasure to pick
+	# (instead of using the defaults found in the original game)
+
+	global human_or_comp
+	global leaders
+	global symbols
+	global grid
+	global bg
+	global scores
+	global bag
+	global hands
+	global catastrophes
+	global kingdoms
+	global log
+	
+	human_or_comp = ["human","human","human","human","human"] # for now..
+	
+	leaders = ["rl1","rl2","rl3","rl4","ul1","ul2","ul3","ul4", \
+			   "al1","al2","al3","al4","gl1","gl2","gl3","gl4"]
+
+	symbols = randomly_assign_player_symbols()
+	grid = create_main_grid()
+	bg = reset_board_graphics()
+
+	rivers = define_default_river()
+	for q in [q for river in rivers for q in river]:
+		grid[q] = "river"
+	set_river_graphics(rivers,bg) # defined below, in #4#
+
+	treasure = define_default_treasure()
+	for q in treasure: 
+		place(q, "treasure") # this is a key function, found in #5#
+
+	scores = {1:[0,0,0,0,0],2:[0,0,0,0,0],3:[0,0,0,0,0],4:[0,0,0,0,0]}
+	bag = [47,36,30,30] # red, blue, black, green tiles remaining
+	hands = {1:[0,0,0,0], 2:[0,0,0,0], 3:[0,0,0,0], \
+			4:[0,0,0,0]} # these will be filled in #5#
+	catastrophes = [2,2,2,2]
+	kingdoms = {}
+	log = [] # for the use of the AI
+
+
+
+###
+
+##4## graphical representations
+
+# i am using a lot of variables, many of which will not get used (very much).  
+# the game board is 16 x 11, but each tile is going to consist of a 5 x 3
+# square (including the lower border but not the sides).  each of the three
+# lines of the interior of a tile will have a separate variable (that is, a
+# value in a dict), and each piece of the side borders will also have a
+# variable (which will usually just be a vertical bar, '|').  almost all of
+# the graphical variation will occur on the middle variable.  each spot on the
+# board will be assigned a number:
+
+#	 ___________	0( 1 )2( 3 )4(... 		the top line will have only 33
+#	|     |     |	33(34)35(36)37...		variables, but all others will
+#	| *** |   r r	67(68)69(70)71...		have 34.  of the variables shown
+#	|_____|__r__|	|_____|__r__|			to the left, 68 and 70 are the
+#	|     |  r  |	|     |  r  |			only ones that would be affected
+#	|     | *** |	|     | *** |			by the majority of in-game play.
+#	|_____|__r__|	|_____|__r__|	
+#
+#
+
+
+def reset_board_graphics():
+	bg = {}
+	for v in range(1171):
+		bg[v] = "x"
+	bg[0] = " "
+	bg[32] = "   "
+	for v in range(1,32,2):
+		bg[v] = "_____"
+	for v in range(2,31,2):
+		bg[v] = "_"
+	for v in range(33,1155,2):
+		bg[v] = "|"
+	for v in range(66,1155,34):
+		bg[v] = "   "
+	for v in range(100,1155,102):
+		bg[v] = " %s" % ( (v-100)/102 + 1 )
+	for row in range(1,34,3):
+		for v in range(row*34,row*34+31,2):
+			bg[v] = "     "
+	for row in range(2,34,3):
+		for v in range(row*34,row*34+31,2):
+			bg[v] = "     "
+	for row in range(3,34,3):
+		for v in range(row*34,row*34+31,2):
+			bg[v] = "_____"
+	for v in range(1155,1171):
+		bg[v] = "   %s  " % (num_to_alpha(v-1154))
+	return bg
+
+
+def set_river_graphics(rivers,bg):
+	for river in rivers:
+		for q in [river[0]]: #first endpoint
+			if q[0] == 1:
+				bg[q_to_v(q)-1] = "r"
+				if river[1][0] == 1:
+					bg[q_to_v(q)] = " r   "
+				else:
+					bg[q_to_v(q)] = " r r "
+			elif q[0] == 16:
+				bg[q_to_v(q)+1] = "r"
+				if river[1][0] == 16:
+					bg[q_to_v(q)] = "   r "
+				else:
+					bg[q_to_v(q)] = " r r "
+			elif q[1] == 1:
+				bg[q_to_v(q)-34] = "  r  "
+				bg[q_to_v(q)-67] = "__r__"
+				if river[1][1] == 2:
+					bg[q_to_v(q)] = "  r  "
+				elif river[1][0] == q[0] + 1:
+					bg[q_to_v(q)] = "   r "
+				elif river[1][0] == q[0] - 1:
+					bg[q_to_v(q)] = " r   "
+			elif q[1] == 11:
+				bg[q_to_v(q)+34] = "___r_"
+				if river[1][1] == 10:
+					bg[q_to_v(q)] = "  r  "
+				elif river[1][0] == q[0] + 1:
+					bg[q_to_v(q)] = "   r "
+				elif river[1][0] == q[0] - 1:
+					bg[q_to_v(q)] = " r   "
+		for q in [river[-1]]: # 2nd endpoint
+			if q[0] == 1:
+				bg[q_to_v(q)-1] = "r"
+				if river[-2][0] == 1:
+					bg[q_to_v(q)] = " r   "
+				else:
+					bg[q_to_v(q)] = " r r "
+			elif q[0] == 16:
+				bg[q_to_v(q)+1] = "r"
+				if river[-2][0] == 16:
+					bg[q_to_v(q)] = "   r "
+				else:
+					bg[q_to_v(q)] = " r r "
+			elif q[1] == 1:
+				bg[q_to_v(q)-34] = "  r  "
+				bg[q_to_v(q)-67] = "__r__"
+				if river[-2][1] == 2:
+					bg[q_to_v(q)] = "  r  "
+				elif river[-2][0] == q[0] + 1:
+					bg[q_to_v(q)] = "   r "
+				elif river[-2][0] == q[0] - 1:
+					bg[q_to_v(q)] = " r   "
+			elif q[1] == 11:
+				bg[q_to_v(q)+34] = "___r_"
+				if river[-2][1] == 10:
+					bg[q_to_v(q)] = "  r  "
+				elif river[-2][0] == q[0] + 1:
+					bg[q_to_v(q)] = "   r "
+				elif river[-2][0] == q[0] - 1:
+					bg[q_to_v(q)] = " r   "
+		for bo in range(len(river)-1): # border btwn middle river sections
+			if river[bo][0] + 1 == river[bo+1][0]:
+				bg[q_to_v(river[bo])+1] = "r"
+			elif river[bo][0] - 1 == river[bo+1][0]:
+				bg[q_to_v(river[bo])-1] = "r"
+			elif river[bo][1] + 1 == river[bo+1][1]:
+				bg[q_to_v(river[bo])+34] = "__r__"
+				bg[q_to_v(river[bo])+68] = "  r  "
+			elif river[bo][1] - 1 == river[bo+1][1]:
+				bg[q_to_v(river[bo])-34] = "  r  "
+				bg[q_to_v(river[bo])-68] = "__r__"
+		for m in range(1,len(river)-1): # main v for middle river sections
+			if river[m][0] + 1 == river[m+1][0] or \
+			river[m][0] + 1 == river[m-1][0]:
+				if river[m][0] - 1 == river[m+1][0] or \
+				river[m][0] - 1 == river[m-1][0]:
+					bg[q_to_v(river[m])] = " r r "
+				else:
+					bg[q_to_v(river[m])] = "   r "
+			else:
+				if river[m][0] - 1 == river[m+1][0] or \
+				river[m][0] - 1 == river[m-1][0]:
+					bg[q_to_v(river[m])] = " r   "
+				else:
+					bg[q_to_v(river[m])] = "  r  "
+
+
+def q_to_v(q):
+	x, y = q
+	v = 2 * x + y * 102 - 36
+	return v
+
+def board_graphics_update(q, piece): # will have to change this if
+	v = q_to_v(q)                    # forks in the river are allowed
+	if piece == "river":
+		river_graphics_update(v)
+	elif piece == "empty": 
+		bg[v-34] = "     "
+		bg[v] = "     "
+		bg[v+34] = "_____"
+	elif piece == "red":
+#		bg[v-34] = ".   ."
+		bg[v] = " tem "
+#		bg[v+34] = ".___."
+	elif piece == "blue":
+		bg[v] = " frm "
+#		if bg[v-34][2] == "r":
+#			bg[v-34] = ". r ."
+#		else:
+#			bg[v-34] = ".   ."
+#		if bg[v+34][2] == "r":
+#			bg[v+34] = "._r_."
+#		else:
+#			bg[v+34] = ".___."
+
+#	elif piece == "blue" and 1 ==2:		# debatable what the best
+#		if bg[v-34][2] == "r":			# graphic for farms (on
+#			N = True 					# rivers) is.  sticking
+#			bg[v-34] = ". r ."			# with a simple option here
+#		else:
+#			N = False
+#			bg[v-34] = ".   ."
+#		if bg[v+34][2] == "r":
+#			S = True
+#			bg[v+34] = "._r_."
+#		else:
+#			S = False
+#			bg[v+34] = ".___."
+#		if bg[v-1] == "r":
+#			if N or S:
+#				bg[v] = " frm "
+#			else:
+#				bg[v] = " frm "
+#		elif bg[v+1] == "r":
+#			bg[v] = " frm "
+#		bg[v-34] = ". r ."
+#		bg[v+34] = "._r_."
+
+	elif piece == "black":
+#		bg[v-34] = ".   ."
+		bg[v] = " set "
+#		bg[v+34] = ".___."
+	elif piece == "green":
+#		bg[v-34] = ".   ."
+		bg[v] = " mkt "
+#		bg[v+34] = ".___."
+	elif piece in leaders:
+		if piece[0] == "r":
+			bg[v] = " PST "
+		elif piece[0] == "u":
+			bg[v] = " FMR "
+		elif piece[0] == "a":
+			bg[v] = " KNG "
+		elif piece[0] == "g":
+			bg[v] = " TDR "
+		p = int(piece[2])
+		bg[v-34] = symbols[p] + " " + piece[2] + " " + symbols[p]
+		bg[v+34] = symbols[p] + "_" + piece[2] + "_" + symbols[p]
+	elif piece == "treasure":
+		bg[v] = " tem "
+		bg[v-34] = " $$$ "
+	elif piece == "catastrophe":
+		bg[v-34] = " X X "
+		bg[v] = "X 0 X"
+		bg[v+34] = "_X_X_"
+
+
+def river_graphics_update(v):
+	if bg[v+1] == "r":
+		if bg[v-1] == "r":
+			bg[v] = " r r "
+		else:
+			bg[v] = "   r "
+	else:
+		if bg[v-1] == "r":
+			bg[v] = " r   "
+		else:
+			bg[v] = "  r  "
+	if bg[v-34][2] == "r":
+		bg[v-34] = "  r  "
+	else: 
+		bg[v-34] = "     "
+	if bg[v+34][2] == "r":
+		bg[v+34] = "__r__"
+	else: 
+		bg[v+34] = "_____"
+
+def paint_monument(NWq, color1, color2):
+	bg[q_to_v(NWq)-34] = " +---"
+	bg[q_to_v(NWq)-33] = "-"
+	bg[q_to_v(NWq)-32] = "---+ "
+	if color1 == "red":
+		bg[q_to_v(NWq)] = " |  R"
+	elif color1 == "green":
+		bg[q_to_v(NWq)] = " | GR"
+	else:
+		bg[q_to_v(NWq)] = " | BL"
+	if color1 == "black":
+		bg[q_to_v(NWq)+1] = "A"
+	elif color1 == "blue":
+		bg[q_to_v(NWq)+1] = "U"
+	else:
+		bg[q_to_v(NWq)+1] = "E"
+	if color1 == "red":
+		bg[q_to_v(NWq)+2] = "D  | "
+	elif color1 == "green":
+		bg[q_to_v(NWq)+2] = "EN | "
+	elif color1 == "black":
+		bg[q_to_v(NWq)+2] = "CK | "
+	else:
+		bg[q_to_v(NWq)+2] = "E  | "
+	bg[q_to_v(NWq)+34] = " |   "
+	bg[q_to_v(NWq)+35] = " "
+	bg[q_to_v(NWq)+36] = "   | "
+	if color2 == "red":
+		bg[q_to_v(NWq)+68] = " |  R"
+	elif color2 == "green":
+		bg[q_to_v(NWq)+68] = " | GR"
+	elif color2 == "blue":
+		bg[q_to_v(NWq)+68] = " |  B"
+	else:
+		bg[q_to_v(NWq)+68] = " | BL"
+	if color2 == "black":
+		bg[q_to_v(NWq)+69] = "A"
+	elif color2 == "blue":
+		bg[q_to_v(NWq)+69] = "L"
+	else:
+		bg[q_to_v(NWq)+69] = "E"
+	if color2 == "red":
+		bg[q_to_v(NWq)+70] = "D  | "
+	elif color2 == "green":
+		bg[q_to_v(NWq)+70] = "EN | "
+	elif color2 == "black":
+		bg[q_to_v(NWq)+70] = "CK | "
+	else:
+		bg[q_to_v(NWq)+70] = "UE | "
+	bg[q_to_v(NWq)+102] = " +---"
+	bg[q_to_v(NWq)+103] = "-"
+	bg[q_to_v(NWq)+104] = "---+ "
+		
+def beg_conflict_graphic(q):
+	vtop = bg[q_to_v(q)-34]
+	vmid = bg[q_to_v(q)]
+	vbot = bg[q_to_v(q)+34]
+	bg[q_to_v(q)-34] = "\ | /"
+	bg[q_to_v(q)] = "- * -"
+	bg[q_to_v(q)+34] = "/_|_\\"
+
+def end_conflict_graphic(q): # unused
+	vtop = bg[q_to_v(q)-34]
+	vmid = bg[q_to_v(q)]
+	vbot = bg[q_to_v(q)+34]
+	bg[q_to_v(q)-34] = vtop
+	bg[q_to_v(q)] = vmid
+	bg[q_to_v(q)+34] = vbot
+
+def print_board():
+	print """
+
+
+
+
+
+
+
+	"""
+	rows = [""]*35	
+	for v in range(33):
+		rows[0] += bg[v]
+	for row in range(1,34):
+		for v in range(row*34-1,row*34+33):
+			rows[row] += bg[v]
+	for v in range(1155,1171):
+		rows[34] += bg[v]
+	for row in rows:
+		print row
+	return rows
+
+
+###
+
+##5## moves, rules and regulations
+
+def initial_draw():
+	for p in range(1,5):
+		draw_tiles(p, 6)
+
+def draw_tiles(p, num):
+	for i in range(num):
+		r = random() * sum(bag)
+		if r < bag[0]: 
+			hands[p][0] += 1
+			bag[0] -= 1
+		elif r < bag[0]+bag[1]:
+			hands[p][1] += 1
+			bag[1] -= 1
+		elif r < bag[0]+bag[1]+bag[2]:
+			hands[p][2] += 1
+			bag[2] -= 1
+		else:
+			hands[p][3] += 1
+			bag[3] -= 1
+
+def one_turn(p):
+	print_board()
+	print """
+
+Player {0}, it is your turn.""".format(p)
+	print_scores(p)
+	one_move(p, "first")
+	print_board()
+	print_scores(p)
+	one_move(p, "second")
+	### score monuments
+	print_scores(p)
+	for player in range(1,5):
+		if sum(hands[player]) < 6:
+			draw_tiles(player, 6 - sum(hands[player]))
+
+def print_scores(p):
+	print "Player {0}'s scores:".format(p)
+	print "red: {0}, blue: {1}, black: {2}, green: {3}, treasures: {4}.".format(\
+	scores[p][0], scores[p][1], scores[p][2], scores[p][3], scores[p][4])
+	s = raw_input("...   ")
+	print ""
+
+def one_move(player, f_or_s):
+	p = player
+	if human_or_comp[p] == "human":
+		piece, dest = prompt_move(p, f_or_s)
+	else:
+		piece, dest = AI_mother(p) # assuming AI never makes invalid move...
+	make_move(dest, piece, player)
+
+def display_hand(p):
+	print "Player {0}'s hand: {1} temple{2}, {3} farm{4}, {5} settlement{6} and {7} \
+market{8}.".format(p, hands[p][0], "" if hands[p][0]==1 else "s", hands[p][1], \
+	"" if hands[p][1]==1 else "s", hands[p][2], "" if hands[p][2]==1  \
+	else "s", hands[p][3], "" if hands[p][3]==1 else "s")
+	print ""
+
+def prompt_move(p, f_or_s):
+	print "Your {0} action: place a tile, move a leader, \
+inflict a catastrophe or swap tiles.".format(f_or_s)
+	display_hand(p)
+	move_ok = False
+	while move_ok == False:
+		print ""
+		piece = fix_shorthand((raw_input(" {0} ".format(symbols[p]))).lower())
+		if piece == "swap":
+			return "swap"
+		elif piece == False: # responds to invalid input
+			print "This is not a valid move."
+		elif (piece == "temple" and hands[p][0] == 0) or \
+			(piece == "farm" and hands[p][1] == 0) or \
+			(piece == "settlement" and hands[p][2] == 0) or \
+			(piece == "market" and hands[p][3] == 0):
+			print "You do not have any tiles of type.  Choose another move."
+		elif piece == "catastrophe" and catastrophes[p] == 0:
+			print "You do not have any catastrophes left.  Choose another move."
+		else:
+			print "Where would you like to place the " + piece + "?"
+			move_ok = True
+	move_ok = False
+	piece = translate_piece(piece, p)
+	while move_ok == False:
+		dest = grid_user_to_main(raw_input(" {0} ".format(symbols[p])))
+		print ""
+		if dest == False:
+			print "This is not a valid coordinate on the grid."
+		else:
+			valid = validmove(piece,dest)
+			if valid != True:
+				print valid
+			else:
+				move_ok = True
+	return (piece, dest)
+
+def fix_shorthand(s):
+	if s == "red" or s == "tem" or s == "t" or s == "temple": 
+		return "temple"
+	elif s == "blue" or s == "fa" or s == "f" or s == "farm": 
+		return "farm"
+	elif s == "black" or s == "set" or s == "s" or s == "settlement": 
+		return "settlement"
+	elif s == "green" or s == "mar" or s == "m" or s == "market": 
+		return "market"
+	elif s == "pri" or s == "p" or s == "rl" or s == "priest": 
+		return "priest"
+	elif s == "fr" or s == "ul" or s == "farmer": 
+		return "farmer"
+	elif s == "kg" or s == "k" or s == "al" or s == "king": 
+		return "king"
+	elif s == "tr" or s == "t" or s == "gl" or s == "trader": 
+		return "trader"
+	elif s == "cat" or s == "catastrophe": 
+		return "catastrophe"
+	elif s == "swap":
+		return "swap"
+	else:
+		return False
+
+def translate_piece(piece, player): # i used different terminology in the code
+	if piece == "temple": return "red"
+	if piece == "farm": return "blue"
+	if piece == "settlement": return "black"
+	if piece == "market": return "green"
+	if piece == "priest": return "rl" + str(player)
+	if piece == "farmer": return "ul" + str(player)
+	if piece == "king": return "al" + str(player)
+	if piece == "trader": return "gl" + str(player)
+	if piece == "catastrophe": return "catastrophe"
+
+def validmove(piece, dest):
+	if piece not in leaders and dest == 0:
+		return "Only leaders may be removed from the board."
+	elif piece == "catastrophe":              # a valid move returns True;
+		if grid[dest] == "catastrophe":		# else returns error message
+			return "You may not place a catastrophe on another catastrophe."
+		elif grid[dest] in leaders:
+			return "You may not place a catastrophe on a leader."
+		else:
+			return True
+	elif piece in ("red","blue","black","green"):
+		if grid[dest] not in ["empty","river"]:
+			return "You must place a tile on an unoccupied space."
+		elif grid[dest] == "river" and piece != "blue":
+			return "Only farms may be placed on river spaces."
+		elif grid[dest] != "river" and piece == "blue":
+			return "Farms must be placed on river spaces."
+		elif q_in_how_many_b(dest) > 2 :
+			return "You may not join three or four kingdoms at one time."
+		else:
+			return True
+	elif piece in leaders:
+		if grid[dest] == piece:
+			return "This leader is already at this location."
+		elif grid[dest] not in ["empty","river"]:
+			return "You must place a leader on an unoccupied space."
+		elif grid[dest] == "river":
+			return "You may not place a leader on a river space."
+		elif "red" not in [grid[adj_q] for adj_q in adjacent_q(dest)] and \
+			"treasure" not in [grid[adj_q] for adj_q in adjacent_q(dest)]:
+			return "Leaders must be placed next to a temple."
+		else:
+			leader_loc = get_leader_location()
+			if leader_loc[piece] != 0:
+				save_q = grid[leader_loc[piece]]
+				place(leader_loc[piece], "empty")
+				assess_kingdoms()
+				if q_in_how_many_b(dest) > 1:
+					place(leader_loc[piece], piece)
+					return "You may not join kingdoms with a leader."
+				else: return True
+			else: return True
+	else:
+		return "Enter a valid piece to move" # probably not necessary
+
+
+def make_move(dest, piece, player):
+	assess_kingdoms()
+	bordering = q_in_how_many_b(dest)
+	if piece in ("red","blue","black","green") and bordering == 2:
+		external_conflict(dest, player, piece)
+	else: place(dest, piece)
+	print_board()
+	if piece in ("red","blue","black","green") and bordering == 1:
+		score_for_tile(dest, piece)
+	elif piece in leaders and bordering == 1:
+		internal_conflict(dest, piece)
+
+def place(q, piece):
+	grid[q] = piece
+	board_graphics_update(q, piece)
+
+# just for testing:
+def userplace(coor, piece):
+	q = grid_user_to_main(coor)
+	place(q, piece)
+
+def adjacent_q(q):
+	x,y = q
+	adj_q = []
+	if x != 1: 
+		adj_q.append((x-1,y))
+	if x != 16:
+		adj_q.append((x+1,y))
+	if y != 1:
+		adj_q.append((x,y-1))
+	if y != 11:
+		adj_q.append((x,y+1))
+	return adj_q
+
+### kingdoms are recorded as a dictionary.  the key is a tuple of the leaders 
+### in the kingdom (e.g., ("rl2", "gl4", "al4")), and the value of each kingdom
+### is another dictionary, whose keys are "q" (q in the kingdom) and "b" (q in the
+### kingdom's border).  the values of these two keys are lists of q (i.e., tuple 
+### coordinates).  
+
+def assess_kingdoms(): 
+	global kingdoms
+	kingdoms = {}
+	leader_loc = get_leader_location()
+	remaining_leaders = [leader for leader in leader_loc.keys() \
+	if leader_loc[leader] != 0]
+	while remaining_leaders != []:
+		leader1 = remaining_leaders[0]
+		leaders_in_this_kingdom = [leader1]
+		q_in_this_kingdom = set([leader_loc[leader1]])
+		b_of_this_kingdom = set([])
+		adj_q_to_check = adjacent_q(leader_loc[leader1])
+		while adj_q_to_check != []:
+			add_tiles = []
+			remove_tiles = []
+			for q in adj_q_to_check:
+				if grid[q] in ["empty","river","catastrophe"]:
+					remove_tiles.append(q)
+					b_of_this_kingdom.add(q)
+				else:
+					q_in_this_kingdom.add(q)
+					remove_tiles.append(q)
+					for new_q in adjacent_q(q):
+						if new_q not in adj_q_to_check and \
+						new_q not in add_tiles and \
+						new_q not in q_in_this_kingdom:
+							add_tiles.append(new_q)
+					if grid[q] in leaders:
+						leaders_in_this_kingdom.append(grid[q])
+						remaining_leaders.remove(grid[q])
+			for q in remove_tiles:
+				adj_q_to_check.remove(q)
+			for q in add_tiles:
+				adj_q_to_check.append(q)
+		kingdoms[tuple(leaders_in_this_kingdom)] = \
+			{"q": list(q_in_this_kingdom), "b": list(b_of_this_kingdom)}
+		remaining_leaders.remove(leader1)
+	return kingdoms
+
+def q_in_how_many_b(q):
+	k_b = [kingdom for kingdom in kingdoms if (q in kingdoms[kingdom]["b"])]
+	return len(k_b)
+
+def score_for_tile(q, piece):
+	assess_kingdoms()
+	for kingdom in kingdoms:
+		if q in kingdoms[kingdom]["q"]:
+			k = kingdom
+	if piece == "red":
+		if "r" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "r"][0])
+			scores[player][0] += 1
+		elif "a" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "a"][0])
+			scores[player][0] += 1
+	if piece == "blue":
+		if "u" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "u"][0])
+			scores[player][1] += 1
+		elif "a" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "a"][0])
+			scores[player][1] += 1
+	if piece == "black":
+		if "a" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "a"][0])
+			scores[player][2] += 1
+	if piece == "green":
+		if "g" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "g"][0])
+			scores[player][3] += 1
+		elif "a" in [L[0] for L in k]:
+			player = int([L[2] for L in k if L[0] == "a"][0])
+			scores[player][3] += 1
+
+def external_conflict(q, p, piece):
+	print ""
+	print "TWO KINGDOMS ARE UNITING"
+	pause = raw_input('...   ')
+	print ""
+	leader_loc = get_leader_location()
+	cons = [True, True, True, True]
+	beg_conflict_graphic(q)
+	while cons.count(True) > 0:
+		assess_kingdoms()
+		k_in_con = [L for k_ in [k for k in kingdoms if q \
+		in kingdoms[k]['b']] for L in k_]
+		for i in range(4):
+			if [k[0] for k in k_in_con].count(['r','u','a','g'][i]) < 2:
+				cons[i] = False
+		con_d = dict(zip(["red","blue","black","green"], cons))
+		if cons.count(True) == 0:
+			pass # should pass to end
+		elif cons.count(True) == 1:
+			con_col = [c for c in con_d if con_d[c] == True][0]
+		else:
+			if human_or_comp[p] == "human":
+				con_col = prompt_for_con(p, cons)
+			else:
+				con_col = AI_choosing_conflicts()
+		if cons.count(True) > 0:
+			print "EXTERNAL CONFLICT: {0}.".format(["priests", "farmers", \
+				"kings", "traders"][con_col])
+			print ""
+			con_col = {"red":0,"blue":1,"black":2,"green":3}[con_col]
+			base = ['r','u','a','g'][con_col]+"l"
+			if base+str(p) in k_in_con:
+				att_p = p
+				k_in_con.remove(base+str(p))
+			elif base+str(p%4+1) in k_in_con:
+				att_p = p%4+1
+				k_in_con.remove(base+str(p%4+1))
+			else:
+				att_p = (p+1)%4+1
+				k_in_con.remove(base+str((p+1)%4+1))
+			def_p = [L[2] for L in k_in_con if L[:2]==base][0]
+
+			# now we have our attacker, defender and color.
+
+			#attacker's calculation
+			a_k = [k for k in kingdoms if base+att_p in k][0]
+			akq = [grid[q] for q in kingdoms[a_k]['q']]
+			att_s = akq.count(["red","blue","black","green"][con_col])
+			if con_col == 0:
+				att_s += akq.count("treasure")
+			if human_or_comp[att_p] == "human":
+				aadd = prompt_tile_add(att_p, con_col, att_s)
+			else:
+				aadd = AI_tile_add()
+			att_s += aadd
+
+			#defender's calculation
+			d_k = [k for k in kingdoms if base+def_p in k][0]
+			dkq = [grid[q] for q in kingdoms[d_k]['q']]
+			def_s = dkq.count(["red","blue","black","green"][con_col])
+			if con_col == 0:
+				def_s += dkq.count("treasure")
+			if human_or_comp[def_p] == "human":
+				dadd = prompt_tile_add(def_p, con_col, def_s)
+			else:
+				dadd = AI_tile_add()
+			def_s += dadd
+
+			#resolution
+			if att_s > def_s:
+				winner = att_p
+				loser = (def_p, d_k, base+str(def_p))
+			else:
+				winner = def_p
+				loser = (att_p, a_k, base+str(att_p))
+			print "Player", winner, "has won the conflict!"
+			place(leader_loc[loser[2]], "empty")
+			losing_t = [q for q in kingdoms[loser[1]]['q'] \
+				if grid[q] == ["red","blue","black","green"][con_col]]
+			if con_col == 0:
+				ok_tiles = []
+				for tile in losing_t:
+					if len( set(adjacent_q(tile)) & set(leaders) ) > 0:
+						ok_tiles.append(tile)
+				for tile in ok_tiles:
+					losing_t.remove(tile)
+			if con_col == 1: # note -- "if" (a.o.t. elif) not a mistake! 
+				for tile in losing_t:
+					place(tile, "river")
+			else:
+				for tile in losing_t:
+					place(tile, "empty")
+			scores[winner] += 1 + len(losing_t)
+	place(q, piece)
+	print "Conflict resolved"
+		
+def prompt_for_con(p, cons):
+	print ""
+	print "Choose the leaders that will resolve their conflict."
+	proceed = False
+	while proceed == False:
+		print ""
+		c = raw_input(" {0} ".format(symbols[p]).lower())
+		print ""
+		if c.lower() == "red" or c[:6].lower() == "priest":
+			choice = 0
+		elif c.lower() == "blue" or c[:6].lower() == "farmer":
+			choice = 1
+		elif c.lower() == "black" or c[:4].lower() == "king":
+			choice = 2
+		elif c.lower() == "green" or c[:6].lower() == "trader":
+			choice = 3
+		else: 
+			print "Choose a valid leader"
+		if choice in range(4) and cons[choice] == True:
+			proceed = True
+		elif choice in range(4) and cons[choice] == False:
+			print "This type of leader is not in conflict"
+	return choice
+		
+def prompt_tile_add(p,c, base):
+	max_tiles = hands[p][c]
+	print "Player" + str(p) + ":"
+	print "Current conflict strength: {0}".format(base)
+	print "How many tiles would you like to add?"
+	display_hand(p)
+	while True:
+		print ""
+		s = raw_input(" {0} ".format(symbols[p]).lower())
+		print ""
+		if s.isdigit() == False:
+			print "Enter a valid number."
+		elif int(s) > max_tiles:
+			print "You do not have this many tiles."
+		else:
+			print "Player {0} adds {1} tiles for a total of {2}.".format( \
+			p, s, base+int(s))
+			print ""
+			print ""
+			return int(s)
+
+def assess_int_str(leader):
+	leader_loc = get_leader_location()
+	return len([q for q in adjacent_q(leader_loc[leader]) if grid[g] == "red"])
+
+def internal_conflict(q,piece):
+	assess_kingdoms()
+	kdm = list([k for k in kingdoms if piece in k][0])
+	if [L[:2] for L in kdm].count(piece[:2]) > 1:
+		print ""
+		print ""
+		print "INTERNAL CONFLICT!!!"
+		print ""
+		print "q :", q
+		base_att = len([rt for rt in adjacent_q(q) \
+			if (grid[rt] == "red" or grid[rt] == "treausre")])
+		kdm.remove(piece)
+		leader_loc = get_leader_location()
+		def_q = [leader_loc[L] for L in kdm if L[:2] == piece[:2]][0]
+		base_def = len([rt for rt in adjacent_q(def_q) \
+			if (grid[rt] == "red" or grid[rt] == "treausre")])
+		att_s = base_att + prompt_tile_add(int(piece[2]), 0, base_att)
+		def_s = base_def + prompt_tile_add(int(grid[def_q][2]), 0, base_def)
+		if att_s > def_s:
+			winner = int(piece[2])
+			loser = (int(grid[def_q][2]), def_q)
+		else:
+			winner = int(grid[def_q][2])
+			loser = (int(piece[2]), q)
+		print "Player", winner, "has won the conflict!"
+		place(loser[1], "empty")
+		scores[winner][0] += 1
+		if winner == int(grid[def_q][2]): 
+			print_scores(winner)
+
+def AI_mother():
+	pass
+
+def AI_choosing_conflicts():
+	pass
+
+def AI_tile_add():
+	pass
+#
+
+
+###
+
+##6## game structure
+
+
+
+
+
+
+###
+
+##T## test running
+print """
+
+
+"""
+
+
+
+reset_variables_and_board()
+print_board()
+print ""
+print ""
+r = raw_input("+++")
+
+initial_draw()
+
+ok = True
+while ok != "stop":
+	for i in range(1,5):
+		one_turn(i)
+	ok = raw_input(' stop? -->  ')
+
+
+
+print """
+
+
+
+"""
