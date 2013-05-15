@@ -1,10 +1,11 @@
-# this program is not finished, but it can run (with many bugs).  it is being made
+# this program is mostly finished for human players only, but it may have bugs.  in
+# the future i would like to implement computer players.  the program is being made
 # for my own education and entertainment.  it is based on a board game called 
 # "tigris and euphrates".  if you like the program, go buy the game!!
 
 # (this code is for Python)
 
-#  				tigris and euphrates					#
+#					tigris and euphrates					#
 #					draft number two						#
 
 
@@ -147,7 +148,9 @@ def grid_main_to_user(q):   	# translates a tuple coordinate on the board
 	return coor
 
 def grid_user_to_main(coor):    		# translates a coordinate as a letter-
-	if coor.lower() == "remove":
+	if coor == "": 
+		return False
+	elif coor.lower() == "remove":
 		return 0
 	elif coor[0].lower() not in ['a','b','c','d','e','f','g','h', \
 	'i','j','k','l','m','n','o','p']:   # number string to a tuple coordinate.
@@ -231,6 +234,8 @@ def reset_variables_and_board():
 	global hands
 	global catastrophes
 	global kingdoms
+	global monuments
+	global clist
 	global log
 	
 	human_or_comp = ["human","human","human","human","human"] # for now..
@@ -255,11 +260,12 @@ def reset_variables_and_board():
 	bag = [47,36,30,30] # red, blue, black, green tiles remaining
 	hands = {1:[0,0,0,0], 2:[0,0,0,0], 3:[0,0,0,0], \
 			4:[0,0,0,0]} # these will be filled in #5#
-	catastrophes = [2,2,2,2]
+	catastrophes = {1:2,2:2,3:2,4:2}
 	kingdoms = {}
+	monuments = ["red - blue", "red - black", "red - green", "blue - black", \
+					"blue - green", "black - green"]
+	clist = ["red","blue","black","green"]
 	log = [] # for the use of the AI
-
-
 
 ###
 
@@ -419,6 +425,7 @@ def board_graphics_update(q, piece): # will have to change this if
 		bg[v+34] = "_____"
 	elif piece == "red":
 #		bg[v-34] = ".   ."
+		bg[v-34] = "     "
 		bg[v] = " tem "
 #		bg[v+34] = ".___."
 	elif piece == "blue":
@@ -504,7 +511,7 @@ def river_graphics_update(v):
 	else: 
 		bg[v+34] = "_____"
 
-def paint_monument(NWq, color1, color2):
+def paint_monument(NWq, color1, color2, treasure_in_mon):
 	bg[q_to_v(NWq)-34] = " +---"
 	bg[q_to_v(NWq)-33] = "-"
 	bg[q_to_v(NWq)-32] = "---+ "
@@ -528,9 +535,14 @@ def paint_monument(NWq, color1, color2):
 		bg[q_to_v(NWq)+2] = "CK | "
 	else:
 		bg[q_to_v(NWq)+2] = "E  | "
-	bg[q_to_v(NWq)+34] = " |   "
-	bg[q_to_v(NWq)+35] = " "
-	bg[q_to_v(NWq)+36] = "   | "
+	if treasure_in_mon == True:
+		bg[q_to_v(NWq)+34] = " |  $"
+		bg[q_to_v(NWq)+35] = "$"
+		bg[q_to_v(NWq)+36] = "$  | "
+	else:
+		bg[q_to_v(NWq)+34] = " |   "
+		bg[q_to_v(NWq)+35] = " "
+		bg[q_to_v(NWq)+36] = "   | "
 	if color2 == "red":
 		bg[q_to_v(NWq)+68] = " |  R"
 	elif color2 == "green":
@@ -556,26 +568,25 @@ def paint_monument(NWq, color1, color2):
 	bg[q_to_v(NWq)+102] = " +---"
 	bg[q_to_v(NWq)+103] = "-"
 	bg[q_to_v(NWq)+104] = "---+ "
-		
+
 def beg_conflict_graphic(q):
 	vtop = bg[q_to_v(q)-34]
 	vmid = bg[q_to_v(q)]
 	vbot = bg[q_to_v(q)+34]
+	stored_graphics = (vtop, vmid, vbot)
 	bg[q_to_v(q)-34] = "\ | /"
 	bg[q_to_v(q)] = "- * -"
 	bg[q_to_v(q)+34] = "/_|_\\"
+	return stored_graphics
 
-def end_conflict_graphic(q): # unused
-	vtop = bg[q_to_v(q)-34]
-	vmid = bg[q_to_v(q)]
-	vbot = bg[q_to_v(q)+34]
+def end_conflict_graphic(q, stored_graphics): 
+	vtop, vmid, vbot = stored_graphics
 	bg[q_to_v(q)-34] = vtop
 	bg[q_to_v(q)] = vmid
 	bg[q_to_v(q)+34] = vbot
 
 def print_board():
 	print """
-
 
 
 
@@ -593,6 +604,7 @@ def print_board():
 		rows[34] += bg[v]
 	for row in rows:
 		print row
+	print ""
 	return rows
 
 
@@ -606,42 +618,64 @@ def initial_draw():
 
 def draw_tiles(p, num):
 	for i in range(num):
-		r = random() * sum(bag)
-		if r < bag[0]: 
-			hands[p][0] += 1
-			bag[0] -= 1
-		elif r < bag[0]+bag[1]:
-			hands[p][1] += 1
-			bag[1] -= 1
-		elif r < bag[0]+bag[1]+bag[2]:
-			hands[p][2] += 1
-			bag[2] -= 1
+		if sum(bag) == 0:
+			bag_empty = True
+			print ""
+			print "The tiles have run out!"
 		else:
-			hands[p][3] += 1
-			bag[3] -= 1
+			bag_empty = False
+			r = random() * sum(bag)
+			if r < bag[0]: 
+				hands[p][0] += 1
+				bag[0] -= 1
+			elif r < bag[0]+bag[1]:
+				hands[p][1] += 1
+				bag[1] -= 1
+			elif r < bag[0]+bag[1]+bag[2]:
+				hands[p][2] += 1
+				bag[2] -= 1
+			else:
+				hands[p][3] += 1
+				bag[3] -= 1
+	return bag_empty
 
 def one_turn(p):
 	print_board()
-	print """
-
-Player {0}, it is your turn.""".format(p)
-	print_scores(p)
-	one_move(p, "first")
+	print "Player {0}, it is your turn.".format(p)
+	bag_empty = False
+	treas_gone, end_game_now = one_move(p, "first")
 	print_board()
-	print_scores(p)
-	one_move(p, "second")
-	### score monuments
-	print_scores(p)
-	for player in range(1,5):
-		if sum(hands[player]) < 6:
-			draw_tiles(player, 6 - sum(hands[player]))
+	if end_game_now == False:
+		treas_gone, end_game_now = one_move(p, "second")
+		score_monuments(p)
+		for player in range(1,5):
+			if sum(hands[player]) < 6:
+				bag_empty = draw_tiles(player, 6 - sum(hands[player]))
+	if bag_empty == True or treas_gone == True or end_game_now == True:
+		end_game = True
+	else:
+		end_game = False
+	return end_game
 
-def print_scores(p):
-	print "Player {0}'s scores:".format(p)
-	print "red: {0}, blue: {1}, black: {2}, green: {3}, treasures: {4}.".format(\
-	scores[p][0], scores[p][1], scores[p][2], scores[p][3], scores[p][4])
-	s = raw_input("...   ")
+def print_scores(player):
 	print ""
+	for p in range(1,5):
+		print "Player {0}'s scores: red: {1}, blue: {2}, black: {3}, \
+green: {4}, treasures: {5}.  {6}".format(p, scores[p][0], \
+		scores[p][1], scores[p][2], scores[p][3], scores[p][4], \
+		symbols[p] if p==player else "")
+	s = raw_input("...   ")
+	if s[:4] == "show":
+		s2 = raw_input("   ")
+		q = grid_user_to_main(s2)
+		if q != False:
+			print grid[q]
+		else:
+			print ".not a correct grid q."
+	elif s == "kingdoms":
+		assess_kingdoms()
+		print kingdoms
+	s = raw_input("...   ")
 
 def one_move(player, f_or_s):
 	p = player
@@ -649,7 +683,7 @@ def one_move(player, f_or_s):
 		piece, dest = prompt_move(p, f_or_s)
 	else:
 		piece, dest = AI_mother(p) # assuming AI never makes invalid move...
-	make_move(dest, piece, player)
+	return make_move(dest, piece, player)
 
 def display_hand(p):
 	print "Player {0}'s hand: {1} temple{2}, {3} farm{4}, {5} settlement{6} and {7} \
@@ -664,10 +698,13 @@ inflict a catastrophe or swap tiles.".format(f_or_s)
 	display_hand(p)
 	move_ok = False
 	while move_ok == False:
-		print ""
-		piece = fix_shorthand((raw_input(" {0} ".format(symbols[p]))).lower())
-		if piece == "swap":
-			return "swap"
+		piece = fix_shorthand(raw_input(" {0} ".format(symbols[p])) )
+		if piece == "scores":
+			print_scores(p)
+		elif piece == "leaders":
+			print show_leaders(p)
+		elif piece == "swap":
+			return ("swap", None)
 		elif piece == False: # responds to invalid input
 			print "This is not a valid move."
 		elif (piece == "temple" and hands[p][0] == 0) or \
@@ -679,11 +716,16 @@ inflict a catastrophe or swap tiles.".format(f_or_s)
 			print "You do not have any catastrophes left.  Choose another move."
 		else:
 			print "Where would you like to place the " + piece + "?"
-			move_ok = True
+			raw_dest = raw_input(" {0} ".format(symbols[p]))
+			if raw_dest != "redo":
+				dest = grid_user_to_main(raw_dest)
+				move_ok = True
+			else:
+				print "Place a tile, move a leader, \
+inflict a catastrophe or swap tiles."
 	move_ok = False
 	piece = translate_piece(piece, p)
 	while move_ok == False:
-		dest = grid_user_to_main(raw_input(" {0} ".format(symbols[p])))
 		print ""
 		if dest == False:
 			print "This is not a valid coordinate on the grid."
@@ -693,10 +735,25 @@ inflict a catastrophe or swap tiles.".format(f_or_s)
 				print valid
 			else:
 				move_ok = True
+		if move_ok == False:
+			print ""
+			dest = grid_user_to_main(raw_input(" {0} ".format(symbols[p])))
 	return (piece, dest)
 
-def fix_shorthand(s):
-	if s == "red" or s == "tem" or s == "t" or s == "temple": 
+def show_leaders(p):
+	LL = get_leader_location()
+	free_L = [fix_shorthand(L[:2]) for L in leaders if LL[L] == 0 and L[2] == str(p)]
+	if free_L == []:
+		return "All leaders are on the board."
+	else:
+		L_s = "Leaders not on board: "
+		for L in free_L:
+			L_s = L_s + L + ", "
+	return L_s[:-2] + "."
+
+def fix_shorthand(raw_s):
+	s = raw_s.lower()
+	if s == "red" or s == "tem" or s == "t" or s == "temple":
 		return "temple"
 	elif s == "blue" or s == "fa" or s == "f" or s == "farm": 
 		return "farm"
@@ -716,6 +773,10 @@ def fix_shorthand(s):
 		return "catastrophe"
 	elif s == "swap":
 		return "swap"
+	elif s == "scores":
+		return "scores"
+	elif s == "leaders":
+		return "leaders"
 	else:
 		return False
 
@@ -740,7 +801,7 @@ def validmove(piece, dest):
 			return "You may not place a catastrophe on a leader."
 		else:
 			return True
-	elif piece in ("red","blue","black","green"):
+	elif piece in clist:
 		if grid[dest] not in ["empty","river"]:
 			return "You must place a tile on an unoccupied space."
 		elif grid[dest] == "river" and piece != "blue":
@@ -775,18 +836,34 @@ def validmove(piece, dest):
 	else:
 		return "Enter a valid piece to move" # probably not necessary
 
-
 def make_move(dest, piece, player):
-	assess_kingdoms()
-	bordering = q_in_how_many_b(dest)
-	if piece in ("red","blue","black","green") and bordering == 2:
-		external_conflict(dest, player, piece)
-	else: place(dest, piece)
-	print_board()
-	if piece in ("red","blue","black","green") and bordering == 1:
-		score_for_tile(dest, piece)
-	elif piece in leaders and bordering == 1:
-		internal_conflict(dest, piece)
+	end_game_now = False
+	if piece == "swap":
+		end_game_now = swap_tiles(player)
+	elif piece == "catastrophe":
+		place(dest, piece)
+		check_temple_support()
+		catastrophes[player] -= 1
+	else:
+		assess_kingdoms()
+		bordering = q_in_how_many_b(dest)
+		if piece in clist:
+			hands[player][dict(zip(clist,[0,1,2,3]))[piece]] -= 1
+			if bordering == 2:
+				external_conflict(dest, player, piece)
+			else:
+				place(dest, piece)
+				print_board()
+				if bordering == 1:
+					score_for_tile(dest, piece)
+			check_monument_build(dest, player)
+		elif piece in leaders:
+			place(dest, piece)
+			print_board()
+			if bordering == 1:
+				internal_conflict(dest, piece)
+	treas_gone = check_treasure()
+	return (treas_gone, end_game_now)
 
 def place(q, piece):
 	grid[q] = piece
@@ -864,62 +941,68 @@ def score_for_tile(q, piece):
 	for kingdom in kingdoms:
 		if q in kingdoms[kingdom]["q"]:
 			k = kingdom
-	if piece == "red":
-		if "r" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "r"][0])
-			scores[player][0] += 1
-		elif "a" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "a"][0])
-			scores[player][0] += 1
-	if piece == "blue":
-		if "u" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "u"][0])
-			scores[player][1] += 1
-		elif "a" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "a"][0])
-			scores[player][1] += 1
-	if piece == "black":
-		if "a" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "a"][0])
-			scores[player][2] += 1
-	if piece == "green":
-		if "g" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "g"][0])
-			scores[player][3] += 1
-		elif "a" in [L[0] for L in k]:
-			player = int([L[2] for L in k if L[0] == "a"][0])
-			scores[player][3] += 1
+	ID = (dict(zip(clist,['r','u','a','g'])))[piece]
+	if ID in [L[0] for L in k]:
+		player = int([L[2] for L in k if L[0] == ID][0])
+	elif 'a' in [L[0] for L in k]:
+		player = int([L[2] for L in k if L[0] == "a"][0])
+	else:
+		player = False
+	if player != False:
+		color = (dict(zip(clist,[0, 1, 2, 3])))[piece]
+		win_points(player, color, 1, "tile placement")
 
-def external_conflict(q, p, piece):
+def swap_tiles(player):
+	print "Type the numbers next to the tiles you would like to swap."
+	hand_list = []
+	Hrange = range( 1, sum(hands[player])+1 )
+	for color in range(4):
+		for tile in range(hands[player][color]):
+			hand_list.append(color)
+	HD = dict(zip(Hrange, hand_list))
+	for i in Hrange:
+		print "[{0}] {1}".format(i, fix_shorthand( clist[HD[i]] ))
+	raw_tiles = raw_input('  {0}  '.format(symbols[player]))
+	for i in Hrange:
+		if str(i) in raw_tiles:
+			hands[player][HD[i]] -= 1
+	if sum(hands[player]) < 6:
+		bag_empty = draw_tiles(player, 6 - sum(hands[player]))
+	return bag_empty
+
+def external_conflict(conflict_point, p, piece):
+	s_g = beg_conflict_graphic(conflict_point)
+	print_board()
 	print ""
 	print "TWO KINGDOMS ARE UNITING"
 	pause = raw_input('...   ')
 	print ""
 	leader_loc = get_leader_location()
 	cons = [True, True, True, True]
-	beg_conflict_graphic(q)
 	while cons.count(True) > 0:
+		print_board()
+		print ""
 		assess_kingdoms()
-		k_in_con = [L for k_ in [k for k in kingdoms if q \
+		k_in_con = [L for k_ in [k for k in kingdoms if conflict_point \
 		in kingdoms[k]['b']] for L in k_]
 		for i in range(4):
 			if [k[0] for k in k_in_con].count(['r','u','a','g'][i]) < 2:
 				cons[i] = False
-		con_d = dict(zip(["red","blue","black","green"], cons))
+		con_d = dict(zip(clist, cons))
 		if cons.count(True) == 0:
 			pass # should pass to end
 		elif cons.count(True) == 1:
-			con_col = [c for c in con_d if con_d[c] == True][0]
+			con_col = {"red":0,"blue":1,"black":2,"green":3}[[c for c \
+			in con_d if con_d[c] == True][0]]
 		else:
 			if human_or_comp[p] == "human":
 				con_col = prompt_for_con(p, cons)
 			else:
 				con_col = AI_choosing_conflicts()
 		if cons.count(True) > 0:
-			print "EXTERNAL CONFLICT: {0}.".format(["priests", "farmers", \
+			print "EXTERNAL CONFLICT: {0}".format(["priests", "farmers", \
 				"kings", "traders"][con_col])
 			print ""
-			con_col = {"red":0,"blue":1,"black":2,"green":3}[con_col]
 			base = ['r','u','a','g'][con_col]+"l"
 			if base+str(p) in k_in_con:
 				att_p = p
@@ -930,14 +1013,14 @@ def external_conflict(q, p, piece):
 			else:
 				att_p = (p+1)%4+1
 				k_in_con.remove(base+str((p+1)%4+1))
-			def_p = [L[2] for L in k_in_con if L[:2]==base][0]
+			def_p = int([L[2] for L in k_in_con if L[:2]==base][0])
 
 			# now we have our attacker, defender and color.
 
 			#attacker's calculation
-			a_k = [k for k in kingdoms if base+att_p in k][0]
+			a_k = [k for k in kingdoms if base+str(att_p) in k][0]
 			akq = [grid[q] for q in kingdoms[a_k]['q']]
-			att_s = akq.count(["red","blue","black","green"][con_col])
+			att_s = akq.count(clist[con_col])
 			if con_col == 0:
 				att_s += akq.count("treasure")
 			if human_or_comp[att_p] == "human":
@@ -947,9 +1030,9 @@ def external_conflict(q, p, piece):
 			att_s += aadd
 
 			#defender's calculation
-			d_k = [k for k in kingdoms if base+def_p in k][0]
+			d_k = [k for k in kingdoms if base+str(def_p) in k][0]
 			dkq = [grid[q] for q in kingdoms[d_k]['q']]
-			def_s = dkq.count(["red","blue","black","green"][con_col])
+			def_s = dkq.count(clist[con_col])
 			if con_col == 0:
 				def_s += dkq.count("treasure")
 			if human_or_comp[def_p] == "human":
@@ -968,11 +1051,12 @@ def external_conflict(q, p, piece):
 			print "Player", winner, "has won the conflict!"
 			place(leader_loc[loser[2]], "empty")
 			losing_t = [q for q in kingdoms[loser[1]]['q'] \
-				if grid[q] == ["red","blue","black","green"][con_col]]
+				if grid[q] == clist[con_col]]
 			if con_col == 0:
 				ok_tiles = []
+				LL = get_leader_location()
 				for tile in losing_t:
-					if len( set(adjacent_q(tile)) & set(leaders) ) > 0:
+					if len( set(adjacent_q(tile)) & set(LL.values()) ) > 0:
 						ok_tiles.append(tile)
 				for tile in ok_tiles:
 					losing_t.remove(tile)
@@ -982,9 +1066,15 @@ def external_conflict(q, p, piece):
 			else:
 				for tile in losing_t:
 					place(tile, "empty")
-			scores[winner] += 1 + len(losing_t)
-	place(q, piece)
-	print "Conflict resolved"
+			bounty = 1 + len(losing_t)
+			win_points(winner, con_col, bounty, "the external conflict")
+	end_conflict_graphic(conflict_point, s_g)
+	place(conflict_point, piece)
+	print_board()
+	print ""
+	print "Conflict resolved."
+	pause = raw_input(' . . . ')
+	if pause == "scores": print_scores(p)
 		
 def prompt_for_con(p, cons):
 	print ""
@@ -1004,15 +1094,17 @@ def prompt_for_con(p, cons):
 			choice = 3
 		else: 
 			print "Choose a valid leader"
-		if choice in range(4) and cons[choice] == True:
-			proceed = True
-		elif choice in range(4) and cons[choice] == False:
-			print "This type of leader is not in conflict"
+			choice = False
+		if choice != False:
+			if choice in range(4) and cons[choice] == True:
+				proceed = True
+			elif choice in range(4) and cons[choice] == False:
+				print "This type of leader is not in conflict"
 	return choice
 		
 def prompt_tile_add(p,c, base):
 	max_tiles = hands[p][c]
-	print "Player" + str(p) + ":"
+	print "Player " + str(p) + ":"
 	print "Current conflict strength: {0}".format(base)
 	print "How many tiles would you like to add?"
 	display_hand(p)
@@ -1029,6 +1121,7 @@ def prompt_tile_add(p,c, base):
 			p, s, base+int(s))
 			print ""
 			print ""
+			hands[p][c] -= int(s)
 			return int(s)
 
 def assess_int_str(leader):
@@ -1043,36 +1136,366 @@ def internal_conflict(q,piece):
 		print ""
 		print "INTERNAL CONFLICT!!!"
 		print ""
-		print "q :", q
+		pause = raw_input('...   ')
 		base_att = len([rt for rt in adjacent_q(q) \
-			if (grid[rt] == "red" or grid[rt] == "treausre")])
+			if (grid[rt] == "red" or grid[rt] == "treasure")])
 		kdm.remove(piece)
 		leader_loc = get_leader_location()
 		def_q = [leader_loc[L] for L in kdm if L[:2] == piece[:2]][0]
 		base_def = len([rt for rt in adjacent_q(def_q) \
-			if (grid[rt] == "red" or grid[rt] == "treausre")])
+			if (grid[rt] == "red" or grid[rt] == "treasure")])
 		att_s = base_att + prompt_tile_add(int(piece[2]), 0, base_att)
 		def_s = base_def + prompt_tile_add(int(grid[def_q][2]), 0, base_def)
 		if att_s > def_s:
 			winner = int(piece[2])
 			loser = (int(grid[def_q][2]), def_q)
+			w_is_att = True
 		else:
 			winner = int(grid[def_q][2])
 			loser = (int(piece[2]), q)
+			w_is_att = False
 		print "Player", winner, "has won the conflict!"
 		place(loser[1], "empty")
 		scores[winner][0] += 1
-		if winner == int(grid[def_q][2]): 
-			print_scores(winner)
+		win_points(winner, 0, 1, "the internal conflict")
 
-def AI_mother():
+def win_points(player, color, quantity, source):
+	print "Player {0} scores {1} {2} point{3} from {4}.".format(player, \
+		quantity, clist[color], "" if quantity == 1 else "s", source)
+	scores[player][color] += quantity
+	pause = raw_input('   ')
+
+def check_treasure():
+	corner_t = [ (2,2), (2,8), (16,2), (15,9) ]
+	other_t = [ (6,3), (11,1), (14,5), (9,7), (6,10), (11,11) ]
+	assess_kingdoms()
+	klist = [K for K in kingdoms if \
+		[grid[q][-8:] for q in kingdoms[K]['q']].count("treasure") > 1 and \
+		[leader[0] for leader in K].count('g') == 1 ]
+	if len(klist) > 0:
+		for K in klist:
+			print ""
+			player = [int(L[2]) for L in K if L[0] == 'g'][0]
+			num_tr = len([q for q in kingdoms[K]['q'] if grid[q][-8:] == \
+					"treasure"])
+			for i in range( num_tr - 1 ):
+				treas_q = [q for q in kingdoms[K]['q'] if grid[q][-8:] == \
+					"treasure"]
+				if len(set(treas_q) & set(corner_t)) == 1:
+					pick = [q for q in treas_q if q in corner_t][0]
+				else:
+					if human_or_comp[player] == "human":
+						print "Player "+str(player)+", choose which treasure \
+to take."
+						print "(Choose the northwest space if the treausre is \
+on a monument)"
+						proceed = False
+						while proceed == False:
+							print ""
+							raw_pick=raw_input(" {0} ".format(symbols[player]))
+							print ""
+							pick = grid_user_to_main(raw_pick)
+							if pick == False:
+								print "This is not a space on the grid."
+							elif pick not in corner_t + other_t:
+								print "There is no treasure on this space."
+							elif pick in other_t and \
+								len(set(treas_q) & set(corner_t)) > 0:
+								print "You must pick a corner treasure."
+							else:
+								proceed = True
+					else:
+						pick = AI_treasure_pick()
+				print "Player " + str(player) + " takes the treasure on " + \
+					grid_main_to_user(pick) + "."
+				treasure_count = len([q for q in corner_t+other_t if \
+					grid[q][-8:] == "treasure"])
+				if treasure_count > 3:
+					print treasure_count - 1, "treasures left."
+				elif treasure_count == 3:
+					print "Only 2 treasures left.  Game ends after this turn."
+				elif treasure_count == 2:
+					print "Only 1 treasure left.  Game ends after this turn."
+				if grid[pick] == "treasure":
+					place(pick, "red")
+				elif grid[pick][-8:] == "treasure":
+					new_grid_id = grid[pick][:-8]
+					place(pick, new_grid_id)
+				else:
+					print "ERROR 003"
+				scores[player][4] += 1
+				pause = raw_input('   ')
+	treasure_count = len([q for q in corner_t+other_t if grid[q][-8:] == \
+		"treasure"])
+	if treasure_count < 2:
+		treasure_out = True
+	else: 
+		treasure_out = False
+	return treasure_out
+
+def check_monument_build(Q, player):
+	X,Y = Q
+	color = grid[Q]
+	available_m = [M for M in monuments if color in M]
+	if len(available_m) > 0:
+		NWcandidates = []
+		if X != 1 and Y != 1: 
+			NWcandidates.append((X-1,Y-1))
+		if X != 16 and Y != 1:
+			NWcandidates.append((X,Y-1))
+		if X != 1 and Y != 11:
+			NWcandidates.append((X-1,Y))
+		if X != 16 and Y != 11:
+			NWcandidates.append((X,Y))
+		if color == "red":
+			NWcand2 = [ (x,y) for (x,y) in NWcandidates if (grid[(x,y)] == \
+			"red" or grid[(x,y)] == "treasure") and (grid[(x+1,y)] == "red" \
+			or grid[(x+1,y)] == "treasure") and (grid[(x,y+1)] == "red" or \
+			grid[(x,y+1)]== "treasure") and (grid[(x+1,y+1)]=="red" \
+			or grid[(x+1,y+1)]=="treasure")]
+		else:
+			NWcand2 = [ (x,y) for (x,y) in NWcandidates if grid[(x,y)] == \
+			grid[(x+1,y)] == grid[(x,y+1)] == grid[(x+1,y+1)] ]
+		if len(NWcand2) > 0 and human_or_comp[player] == "human":
+			print ""
+			print "Player {0}, choose one of the options below.".format(player)
+			print "[1] Take no action"
+			print "[2] Place {0} monument".format(available_m[0])
+			options = ['1','2']
+			if len(available_m) > 1:
+				print "[3] Place {0} monument".format(available_m[1])
+				options.append('3')
+			if len(available_m) == 3:
+				print "[4] Place {0} monument".format(available_m[2])
+				options.append('4')
+			s = raw_input('  {0}  '.format(symbols[player]))
+			while s not in options:
+				print ""
+				print "Type one of the numbers on the right listed above."
+				print ""
+				s = raw_input('  {0}  '.format(symbols[player]))
+			choice = int(s)
+			if choice > 1:
+				mon = available_m[choice-2]
+				monuments.remove(mon)
+				if len(NWcand2) > 1:
+					print ""
+					print "Choose the spaces on which you would like to \
+place the monument."
+					options = ['1','2','3'] if len(NWcand2) == 3 else ['1','2']
+					for i in range(len(NWcand2)):
+						x,y = NWcand2[i]
+						qq = [(x,y),(x+1,y),(x,y+1),(x+1,y+1)]
+						uqq = [grid_main_to_user(q) for q in qq]
+						print "[{0}] {1}, {2}, {3}, {4}".format(i+1, uqq[0], \
+							uqq[1], uqq[2], uqq[3])
+					print ""
+					s = raw_input('  {0}  '.format(symbols[player]))
+					while s not in options:
+						print ""
+						print "Type one of the numbers on the right listed above."
+						print ""
+						s = raw_input('  {0}  '.format(symbols[player]))
+					NW_mon_dest = NWcand2[int(s)-1]
+				else:
+					NW_mon_dest = NWcand2[0]
+				x,y = NW_mon_dest
+				treas_in_mon = False
+				for q in [(x,y),(x+1,y),(x,y+1),(x+1,y+1)]:
+					if grid[q] == "treasure":
+						grid[q] = mon + " treasure"
+						treas_in_mon = True
+					else:
+						grid[q] = mon
+				for c in clist:
+					if c in mon and c != color:
+						color2 = c
+				paint_monument(NW_mon_dest, color, color2, treas_in_mon)
+				check_temple_support()
+		elif len(NWcand2) > 0 and human_or_comp[player] == "comp":
+			AI_mon_build()
+
+def check_temple_support():
+	LL = get_leader_location()
+	for leader in leaders:
+		if LL[leader] != 0:
+			adj_tiles = [grid[q] for q in adjacent_q(LL[leader])]
+			if "red" not in adj_tiles and "treasure" not in adj_tiles:
+				place(LL[leader],"empty")
+
+def score_monuments(player):
+	assess_kingdoms()
+	rK = [k for k in kingdoms if 'rl'+str(player) in k]
+	uK = [k for k in kingdoms if 'ul'+str(player) in k]
+	aK = [k for k in kingdoms if 'al'+str(player) in k]
+	gK = [k for k in kingdoms if 'gl'+str(player) in k]
+	if rK != []:
+		if "red - blue" in [grid[q] for q in kingdoms[rK[0]]['q']]:
+			win_points(player, 0, 1, "the red-blue monument")
+		if "red - black" in [grid[q] for q in kingdoms[rK[0]]['q']]:
+			win_points(player, 0, 1, "the red-black monument")
+		if "red - green" in [grid[q] for q in kingdoms[rK[0]]['q']]:
+			win_points(player, 0, 1, "the red-green monument")
+	if uK != []:
+		if "red - blue" in [grid[q] for q in kingdoms[uK[0]]['q']]:
+			win_points(player, 1, 1, "the red-blue monument")
+		if "blue - black" in [grid[q] for q in kingdoms[uK[0]]['q']]:
+			win_points(player, 1, 1, "the blue-black monument")
+		if "blue - green" in [grid[q] for q in kingdoms[uK[0]]['q']]:
+			win_points(player, 1, 1, "the blue-green monument")
+	if aK != []:
+		if "red - black" in [grid[q] for q in kingdoms[aK[0]]['q']]:
+			win_points(player, 2, 1, "the red-black monument")
+		if "blue - black" in [grid[q] for q in kingdoms[aK[0]]['q']]:
+			win_points(player, 2, 1, "the blue-black monument")
+		if "black - green" in [grid[q] for q in kingdoms[aK[0]]['q']]:
+			win_points(player, 2, 1, "the black-green monument")
+	if gK != []:
+		if "red - green" in [grid[q] for q in kingdoms[gK[0]]['q']]:
+			win_points(player, 3, 1, "the red-green monument")
+		if "blue - green" in [grid[q] for q in kingdoms[gK[0]]['q']]:
+			win_points(player, 3, 1, "the blue-green monument")
+		if "black - green" in [grid[q] for q in kingdoms[gK[0]]['q']]:
+			win_points(player, 3, 1, "the black-green monument")
+
+def endgame_scoring():
+	for i in range(20): print ""
+	print "FINAL SCORING:"
+	for p in range(1,5):
+		print "Player {0}'s scores: red: {1}, blue: {2}, black: {3}, \
+green: {4}, treasures: {5}.".format(p, scores[p][0], \
+		scores[p][1], scores[p][2], scores[p][3], scores[p][4])
+	print ""
+	s = raw_input("   ")
+	# calculate final scores:
+	ordered_scores = {}
+	for p in range(1,5):
+		ordered_scores[p] = []
+		remaining_scores = [list(tu) for tu in zip(range(4), scores[p][:4])]
+		while remaining_scores != []:
+			lowest_s = min([entry[1] for entry in remaining_scores])
+			remove_list = []
+			for color in remaining_scores:
+				if color[1] == lowest_s:
+					remove_list.append(color)
+			for color in remove_list:
+				remaining_scores.remove(color)
+				ordered_scores[p].append(color)
+	# [color, score] -> [c,s, treas added, total score]
+	for p in range(1,5):
+		for c in range(4):
+			ordered_scores[p][c].append(0)
+			ordered_scores[p][c].append(ordered_scores[p][c][1])
+		for t in range(scores[p][4]):
+			if ordered_scores[p][0][3] < ordered_scores[p][1][3]:
+				# add treasure to first color
+				ordered_scores[p][0][2] += 1
+				ordered_scores[p][0][3] += 1
+			elif ordered_scores[p][0][3] == ordered_scores[p][1][3]:
+				if ordered_scores[p][1][3] < ordered_scores[p][2][3]:
+					# add treasure to second color
+					ordered_scores[p][1][2] += 1
+					ordered_scores[p][1][3] += 1
+				elif ordered_scores[p][1][3] == ordered_scores[p][2][3]:
+					if ordered_scores[p][2][3] < ordered_scores[p][3][3]:
+						# add treasure to third color
+						ordered_scores[p][2][2] += 1
+						ordered_scores[p][2][3] += 1
+					elif ordered_scores[p][2][3] == ordered_scores[p][3][3]:
+						# add treasure to fourth color
+						ordered_scores[p][3][2] += 1
+						ordered_scores[p][3][3] += 1
+					else:
+						print "ERROR 006"
+				else:
+					print "ERROR 005"
+			else:
+				print "ERROR 004"
+	# rank players - this is a fifth entry in their ordered_scores lists
+	rem_p = [1,2,3,4] # players with undetermined rank
+	while rem_p != []:
+		low1 = min([ordered_scores[p][0][3] for p in rem_p])
+		pp1 = [p for p in rem_p if ordered_scores[p][0][3] == low1]
+		if len(pp1) > 1:
+			low2 = min([ordered_scores[p][1][3] for p in pp1])
+			pp2 = [p for p in pp1 if ordered_scores[p][1][3] == low2]
+			if len(pp2) > 1:
+				low3 = min([ordered_scores[p][2][3] for p in pp2])
+				pp3 = [p for p in pp2 if ordered_scores[p][2][3] == low3]
+				if len(pp3) > 1:
+					low4 = min([ordered_scores[p][3][3] for p in pp3])
+					pp4 = [p for p in pp3 if ordered_scores[p][3][3] == low4]
+					if len(pp4) > 1:
+						ranking_p = max(pp4) # not in original rules: ultimate
+					else:                    # ties are decided by highest 
+						ranking_p = pp4[0]   # player number (i.e., latest 
+				else:                        # first move)
+					ranking_p = pp3[0]
+			else:
+				ranking_p = pp2[0]
+		else:
+			ranking_p = pp1[0]
+		ordered_scores[ranking_p].append(len(rem_p))
+		rem_p.remove(ranking_p)
+
+	print "Place" + 3 * " " + "Player" + 3 * " " + "Lowest Score" + 11 * " " \
+	+ "Second Lowest" + 10 * " " + "Third Lowest" + 11 * " " + "Fourth Lowest"
+
+	for rank in range(4,0,-1):
+		pause = raw_input(" "*80)
+		P = [p for p in range(1,5) if ordered_scores[p][4] == rank][0]
+		S = {1: "1st", 2: "2nd", 3: "3rd", 4:"4th"}[rank] + " " * 5 + \
+		str(P) + "  " + symbols[P] * 3 + " "
+		for color in range(4):
+			s = NS(3,ordered_scores[P][color][1]) + " +" + \
+			NS(3,ordered_scores[P][color][2]) + " =" + \
+			NS(3,ordered_scores[P][color][3]) + \
+			NS(8,("("+clist[ordered_scores[P][color][0]]+")"))
+			S = S + s + "  "
+		print S
+
+def NS(length, x): # normalizes string to a certain length
+	s = str(x)
+	L = len(s)
+	if length > L:
+		return " " * (length - L) + s
+	else:
+		return s
+	
+def addrs(): # add random score - for testing
+	for t in range(150):
+		r1 = random()
+		p = int(r1*4)+1
+		r2 = random()
+		c = int(r2*4)
+		scores[p][c] += 1
+	for t in range(8):
+		r = random()
+		p = int(r*4)+1
+		scores[p][4] += 1
+
+#
+
+def AI_mother(p):
+	print "AIAIAIAIAI"
 	pass
 
 def AI_choosing_conflicts():
+	print "AIAIAIAIAI"
 	pass
 
 def AI_tile_add():
+	print "AIAIAIAIAI"
 	pass
+
+def AI_treasure_pick():
+	print "AIAIAIAIAI"
+	pass
+
+def AI_mon_build():
+	print "AIAIAIAIAI"
+	pass
+
 #
 
 
@@ -1096,18 +1519,26 @@ print """
 
 
 reset_variables_and_board()
-print_board()
-print ""
-print ""
-r = raw_input("+++")
-
+print "   TIGRIS AND EUPHRATES"
+pause = raw_input('   ')
 initial_draw()
 
 ok = True
+p = 0
 while ok != "stop":
-	for i in range(1,5):
-		one_turn(i)
-	ok = raw_input(' stop? -->  ')
+	p = p % 4 + 1
+	end_game = one_turn(p)
+	if end_game == True:
+		endgame_scoring()
+		ok == "stop"
+print """
+
+
+... thank you for playing!
+			"""
+			
+
+
 
 
 
