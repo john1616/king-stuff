@@ -3,6 +3,10 @@
 # for my own education and entertainment.  it is based on a board game called 
 # "tigris and euphrates".  if you like the program, go buy the game!!
 
+# it does not yet have any instructions or help.  the rules may be found online
+# and the commands (though fairly obvious if you know the rules) may be easily 
+# determined from the code.  
+
 # (this code is for Python)
 
 #					tigris and euphrates					#
