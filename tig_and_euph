@@ -784,10 +784,10 @@ inflict a catastrophe or swap tiles.".format(f_or_s), False)
 			(piece == "settlement" and hands[p][2] == 0) or \
 			(piece == "market" and hands[p][3] == 0):
 			update_feed("You do not have any tiles of type.  \
-Choose another move.")
+Choose another move.", False)
 		elif piece == "catastrophe" and catastrophes[p] == 0:
 			update_feed("You do not have any catastrophes left.  \
-Choose another move.")
+Choose another move.", False)
 		else:
 			update_feed("Where would you like to place the " + piece + "?", False)
 			raw_dest = feed_input(" {0} ".format(symbols[p]), p)
@@ -1181,11 +1181,9 @@ def prompt_for_con(p, cons):
 			choice = 3
 		else: 
 			update_feed("Choose a valid leader", False)
-		if choice != -1:
-			if choice in range(4) and cons[choice] == True:
-			elif choice in range(4) and cons[choice] == False:
-				update_feed("This type of leader is not in conflict", False)
-				choice = -1
+		if choice in range(4) and cons[choice] == False:
+			update_feed("This type of leader is not in conflict", False)
+			choice = -1
 	return choice
 		
 def prompt_tile_add(p, c, base):
